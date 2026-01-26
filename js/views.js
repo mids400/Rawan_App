@@ -184,7 +184,7 @@ const Views = {
             <button class="tab-btn" onclick="app.switchTab('photos', this)">الصور</button>
         </div>
 
-        <!-- Tab: Editable Schedule (Compact Table) -->
+        <!-- Tab: Editable Schedule (Split Layout: Fixed Legend + Compact Scrollable Days) -->
         <div id="schedule" class="tab-content active">
             <div class="section-header">
                 <h3>جدول التمارين والوجبات</h3>
@@ -197,41 +197,38 @@ const Views = {
                 </div>
             </div>
 
-            <form id="schedule-form" class="schedule-compact-container">
-                <table class="compact-schedule-table">
-                    <thead>
-                        <tr>
-                            <th class="legend-col">اليوم</th>
-                            ${(client.schedule || []).map(day => `<th>${day.day}</th>`).join('')}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="legend-cell">الفطور</td>
-                            ${(client.schedule || []).map((day, i) => `
-                                <td><textarea class="compact-input" name="breakfast_${i}" readonly>${day.breakfast || ''}</textarea></td>
-                            `).join('')}
-                        </tr>
-                        <tr>
-                            <td class="legend-cell">الغداء</td>
-                            ${(client.schedule || []).map((day, i) => `
-                                <td><textarea class="compact-input" name="lunch_${i}" readonly>${day.lunch || ''}</textarea></td>
-                            `).join('')}
-                        </tr>
-                        <tr>
-                            <td class="legend-cell">العشاء</td>
-                            ${(client.schedule || []).map((day, i) => `
-                                <td><textarea class="compact-input" name="dinner_${i}" readonly>${day.dinner || ''}</textarea></td>
-                            `).join('')}
-                        </tr>
-                        <tr>
-                            <td class="legend-cell highlight">التمرين</td>
-                            ${(client.schedule || []).map((day, i) => `
-                                <td class="highlight-cell"><textarea class="compact-input" name="workout_${i}" readonly>${day.workout || ''}</textarea></td>
-                            `).join('')}
-                        </tr>
-                    </tbody>
-                </table>
+            <form id="schedule-form" class="schedule-split-container">
+                <!-- Fixed Legend (Right) -->
+                <div class="schedule-side-legend">
+                    <div class="legend-header-cell">اليوم</div>
+                    <div class="legend-item-cell"><i class="ph ph-coffee"></i> الفطور</div>
+                    <div class="legend-item-cell"><i class="ph ph-bowl-food"></i> الغداء</div>
+                    <div class="legend-item-cell"><i class="ph ph-moon"></i> العشاء</div>
+                    <div class="legend-item-cell highlight"><i class="ph ph-barbell"></i> التمرين</div>
+                </div>
+
+                <!-- Scrollable Days Area -->
+                <div class="schedule-days-scroll-area">
+                    ${(client.schedule || []).map((day, index) => `
+                        <div class="day-strip">
+                            <div class="day-strip-header">${day.day}</div>
+                            <div class="day-strip-body">
+                                <div class="strip-input-wrapper">
+                                    <textarea class="strip-input schedule-input" name="breakfast_${index}" readonly rows="1">${day.breakfast || ''}</textarea>
+                                </div>
+                                <div class="strip-input-wrapper">
+                                    <textarea class="strip-input schedule-input" name="lunch_${index}" readonly rows="1">${day.lunch || ''}</textarea>
+                                </div>
+                                <div class="strip-input-wrapper">
+                                    <textarea class="strip-input schedule-input" name="dinner_${index}" readonly rows="1">${day.dinner || ''}</textarea>
+                                </div>
+                                <div class="strip-input-wrapper highlight">
+                                    <textarea class="strip-input schedule-input center-text" name="workout_${index}" readonly rows="1" placeholder="راحة">${day.workout || ''}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
             </form>
         </div>
 
