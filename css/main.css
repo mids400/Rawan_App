@@ -587,64 +587,289 @@ body {
     gap: var(--spacing-md);
 }
 
-.schedule-card {
+/* --- Compact Schedule Table --- */
+.schedule-compact-container {
+    overflow-x: auto;
     background: white;
     border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
     box-shadow: var(--shadow-sm);
-    border: 1px solid var(--color-gray-100);
-    transition: all var(--transition-fast);
+    border: 1px solid var(--color-gray-200);
 }
 
-.schedule-card:hover {
-    box-shadow: var(--shadow-md);
-    border-color: var(--primary-200);
+.compact-schedule-table {
+    width: 100%;
+    border-collapse: separate;
+    /* Allows border-radius on cells if needed, but spacing is cleaner */
+    border-spacing: 0;
+    min-width: 800px;
 }
 
-.schedule-day-header {
+.compact-schedule-table th {
+    background: white;
+    color: var(--primary-600);
     font-weight: 800;
-    font-size: var(--font-size-lg);
+    font-size: 14px;
+    padding: 12px;
+    text-align: center;
+    border-bottom: 2px solid var(--primary-100);
+    border-left: 1px solid var(--color-gray-100);
+}
+
+.compact-schedule-table td {
+    padding: 0;
+    border-bottom: 1px solid var(--color-gray-100);
+    border-left: 1px solid var(--color-gray-100);
+    background: white;
+    vertical-align: top;
+    height: 60px;
+    /* Fixed rough height */
+}
+
+/* Legend Column Styling */
+.legend-col {
+    background: var(--primary-50) !important;
+    position: sticky;
+    right: 0;
+    z-index: 10;
+    width: 80px;
+    border-left: 2px solid var(--color-gray-200) !important;
+}
+
+.legend-cell {
+    background: var(--primary-50);
+    color: var(--color-gray-600);
+    font-weight: 700;
+    font-size: 12px;
+    padding: 0 10px !important;
+    vertical-align: middle !important;
+    text-align: center !important;
+    position: sticky;
+    right: 0;
+    z-index: 5;
+    border-left: 2px solid var(--color-gray-200) !important;
+    white-space: nowrap;
+}
+
+.legend-cell.highlight {
     color: var(--primary-700);
+    background: #eff6ff;
+}
+
+.highlight-cell {
+    background: #f8fafc !important;
+}
+
+/* Inputs */
+.compact-input {
+    width: 100%;
+    height: 100%;
+    min-height: 50px;
+    border: none;
+    background: transparent;
+    padding: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-gray-900);
+    resize: none;
+    text-align: center;
+    line-height: 1.3;
+}
+
+.compact-input:focus {
+    outline: none;
+    background: var(--color-gray-50);
+}
+
+.compact-input:read-write {
+    box-shadow: inset 0 0 0 1px var(--primary-200);
+}
+
+
+/* --- Horizontal Card Schedule --- */
+.schedule-horizontal-container {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: var(--spacing-md);
-    padding-bottom: var(--spacing-sm);
-    border-bottom: 1px dashed var(--color-gray-200);
-}
-
-.schedule-inputs-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    overflow-x: auto;
     gap: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    scrollbar-width: thin;
 }
 
-.input-wrapper {
+.schedule-card-vertical {
+    min-width: 260px;
+    background: white;
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+    border: 1px solid var(--color-gray-100);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    transition: transform var(--transition-medium);
+}
+
+.schedule-card-vertical:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+    border-color: var(--primary-100);
+}
+
+.card-header {
+    text-align: center;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--primary-600);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 2px solid var(--primary-50);
+}
+
+.card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.input-bubble {
+    background: var(--color-gray-50);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
     display: flex;
     flex-direction: column;
     gap: 4px;
+    transition: background var(--transition-fast);
 }
 
-.input-label {
-    font-size: 12px;
+.input-bubble:hover {
+    background: var(--color-gray-100);
+}
+
+.input-bubble.highlight {
+    background: #eff6ff;
+    color: var(--primary-700);
+}
+
+.bubble-label {
+    font-size: 11px;
     font-weight: 700;
     color: var(--color-gray-500);
+    margin-bottom: 2px;
+}
+
+.bubble-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    font-weight: 600;
+    color: var(--color-gray-800);
+    resize: none;
+    font-size: 14px;
+    font-family: inherit;
+    line-height: 1.4;
+}
+
+.bubble-input:focus {
+    outline: none;
+}
+
+/* Edit Mode styling */
+.schedule-input:read-write {
+    background: white;
+    box-shadow: 0 0 0 1px var(--primary-300);
+    border-radius: 4px;
+    padding: 4px;
+}
+
+
+/* --- Schedule Legend Layout --- */
+.schedule-wrapper {
+    display: flex;
+    border-radius: var(--radius-lg);
+    background: white;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-gray-200);
+    overflow: hidden;
+}
+
+.schedule-legend {
+    width: 130px;
+    flex-shrink: 0;
+    background: var(--primary-50);
+    border-left: 1px solid var(--color-gray-200);
+    z-index: 2;
+}
+
+.schedule-days-scroll {
+    display: flex;
+    overflow-x: auto;
+    flex: 1;
+    /* Hide scrollbar if possible but keep functionality */
+    scrollbar-width: thin;
+}
+
+.day-column {
+    width: 200px;
+    /* Fixed width per day */
+    flex-shrink: 0;
+    border-left: 1px dashed var(--color-gray-100);
+}
+
+/* Sync Header Heights */
+.legend-header,
+.day-header {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: var(--primary-700);
+    border-bottom: 2px solid var(--color-gray-200);
+    background: white;
+}
+
+.legend-header {
+    background: var(--primary-100);
+    color: var(--primary-800);
+}
+
+/* Sync Row Heights */
+.legend-row,
+.day-input-row {
+    height: 120px;
+    /* Specific height for multiline */
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-sm);
+    border-bottom: 1px solid var(--color-gray-100);
+}
+
+.legend-row {
+    justify-content: center;
+    font-weight: 700;
+    color: var(--color-gray-600);
+    gap: 8px;
+    background: var(--primary-50);
+}
+
+.day-input-row {
+    justify-content: center;
+    background: white;
 }
 
 .schedule-input {
     width: 100%;
+    height: 100%;
+    border: none;
     background: transparent;
-    border: 1px solid transparent;
+    resize: none;
+    font-size: 14px;
+    text-align: center;
+    line-height: 1.4;
     padding: 8px;
-    border-radius: var(--radius-sm);
-    color: var(--color-gray-800);
-    font-weight: 600;
 }
 
-/* When editing, input style changes via JS (handled by removing readonly/adding styles inline or class) */
 .schedule-input:read-write {
     background: var(--color-gray-50);
-    border-color: var(--color-gray-300);
+    box-shadow: inset 0 0 0 1px var(--primary-200);
+    border-radius: var(--radius-sm);
 }
 
 
@@ -761,6 +986,47 @@ body {
     align-items: center;
     justify-content: center;
     margin: 0 auto;
+}
+
+/* Gallery */
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+}
+
+.gallery-item {
+    aspect-ratio: 1 / 1;
+    border-radius: var(--radius-lg);
+    background: var(--color-gray-100);
+    overflow: hidden;
+    /* Crop images */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--glass-border);
+    cursor: pointer;
+    transition: all var(--transition-medium);
+    position: relative;
+    box-shadow: var(--shadow-sm);
+}
+
+.gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* Syncs size */
+    transition: transform 0.3s ease;
+}
+
+.gallery-item:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.gallery-item:hover img {
+    transform: scale(1.05);
 }
 
 .modal-actions {

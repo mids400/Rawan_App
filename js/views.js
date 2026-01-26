@@ -184,7 +184,7 @@ const Views = {
             <button class="tab-btn" onclick="app.switchTab('photos', this)">الصور</button>
         </div>
 
-        <!-- Tab: Editable Schedule -->
+        <!-- Tab: Editable Schedule (Compact Table) -->
         <div id="schedule" class="tab-content active">
             <div class="section-header">
                 <h3>جدول التمارين والوجبات</h3>
@@ -197,32 +197,41 @@ const Views = {
                 </div>
             </div>
 
-            <form id="schedule-form" class="schedule-list">
-                ${(client.schedule || []).map((day, index) => `
-                    <div class="schedule-card">
-                        <div class="schedule-day-header">
-                            <i class="ph ph-calendar-blank"></i> ${day.day}
-                        </div>
-                        <div class="schedule-inputs-grid">
-                            <div class="input-wrapper">
-                                <span class="input-label">فطور</span>
-                                <input type="text" class="form-control schedule-input" name="breakfast_${index}" value="${day.breakfast || ''}" readonly>
-                            </div>
-                             <div class="input-wrapper">
-                                <span class="input-label">غداء</span>
-                                <input type="text" class="form-control schedule-input" name="lunch_${index}" value="${day.lunch || ''}" readonly>
-                            </div>
-                            <div class="input-wrapper">
-                                <span class="input-label">عشاء</span>
-                                <input type="text" class="form-control schedule-input" name="dinner_${index}" value="${day.dinner || ''}" readonly>
-                            </div>
-                            <div class="input-wrapper">
-                                <span class="input-label">تمرين</span>
-                                <input type="text" class="form-control schedule-input" name="workout_${index}" value="${day.workout || ''}" readonly>
-                            </div>
-                        </div>
-                    </div>
-                `).join('')}
+            <form id="schedule-form" class="schedule-compact-container">
+                <table class="compact-schedule-table">
+                    <thead>
+                        <tr>
+                            <th class="legend-col">اليوم</th>
+                            ${(client.schedule || []).map(day => `<th>${day.day}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="legend-cell">الفطور</td>
+                            ${(client.schedule || []).map((day, i) => `
+                                <td><textarea class="compact-input" name="breakfast_${i}" readonly>${day.breakfast || ''}</textarea></td>
+                            `).join('')}
+                        </tr>
+                        <tr>
+                            <td class="legend-cell">الغداء</td>
+                            ${(client.schedule || []).map((day, i) => `
+                                <td><textarea class="compact-input" name="lunch_${i}" readonly>${day.lunch || ''}</textarea></td>
+                            `).join('')}
+                        </tr>
+                        <tr>
+                            <td class="legend-cell">العشاء</td>
+                            ${(client.schedule || []).map((day, i) => `
+                                <td><textarea class="compact-input" name="dinner_${i}" readonly>${day.dinner || ''}</textarea></td>
+                            `).join('')}
+                        </tr>
+                        <tr>
+                            <td class="legend-cell highlight">التمرين</td>
+                            ${(client.schedule || []).map((day, i) => `
+                                <td class="highlight-cell"><textarea class="compact-input" name="workout_${i}" readonly>${day.workout || ''}</textarea></td>
+                            `).join('')}
+                        </tr>
+                    </tbody>
+                </table>
             </form>
         </div>
 
