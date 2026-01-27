@@ -37,7 +37,7 @@ body {
 }
 
 /* Layout */
-.app-container {
+#app {
     display: flex;
     min-height: 100vh;
     backdrop-filter: blur(20px);
@@ -70,24 +70,30 @@ body {
 .logo-container {
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
+    justify-content: center;
+    /* Center them together */
+    gap: 16px;
+    /* More gap */
     margin-bottom: 60px;
     color: var(--primary-600);
     position: relative;
+    padding-right: 0;
 }
 
 /* Animated Logo Blob */
 .logo-container::before {
     content: '';
     position: absolute;
-    width: 60px;
-    height: 60px;
+    width: 70px;
+    /* Bigger blob */
+    height: 70px;
     background: var(--primary-200);
     border-radius: 50%;
-    filter: blur(20px);
+    filter: blur(25px);
     opacity: 0.5;
-    top: -10px;
-    right: -10px;
+    top: -5px;
+    right: 20px;
+    /* Adjust flow */
     z-index: -1;
     animation: blob-pulse 3s infinite alternate;
 }
@@ -98,19 +104,25 @@ body {
     }
 
     100% {
-        transform: scale(1.2);
+        transform: scale(1.1);
     }
 }
 
 .logo-icon {
-    font-size: 36px;
+    font-size: 56px;
+    /* Much Bigger as requested */
     color: var(--primary-600);
+    line-height: 1;
+    /* Fix vertical alignment */
+    display: flex;
 }
 
 .logo-container h1 {
-    font-size: var(--font-size-xl);
+    font-size: 32px;
+    /* Slightly bigger text too */
     font-weight: 800;
     letter-spacing: -1px;
+    line-height: 1;
 }
 
 .nav-menu {

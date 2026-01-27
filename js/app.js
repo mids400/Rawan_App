@@ -10,6 +10,21 @@ const app = {
         this.loadTheme();
         this.checkAuth();
         this.setupNavigation();
+
+        // Mobile Sidebar Toggle Listener
+        document.addEventListener('click', (e) => {
+            const sidebar = document.querySelector('.sidebar');
+            const toggle = document.querySelector('.mobile-menu-toggle');
+
+            // If click is on toggle, handle it
+            if (toggle && toggle.contains(e.target)) {
+                sidebar.classList.toggle('active');
+            }
+            // If click is outside sidebar and sidebar is open, close it
+            else if (sidebar && sidebar.classList.contains('active') && !sidebar.contains(e.target)) {
+                sidebar.classList.remove('active');
+            }
+        });
     },
 
     loadTheme: function () {
@@ -57,7 +72,7 @@ const app = {
         document.querySelectorAll('.nav-link').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
-                const page = link.dataset.page;
+                const page = link.dataset.view; // Fixed: match HTML data-view
                 this.navigate(page);
             });
         });
@@ -68,13 +83,15 @@ const app = {
 
         document.querySelectorAll('.nav-link').forEach(l => {
             l.classList.remove('active');
-            if (l.dataset.page === pageId) l.classList.add('active');
+            if (l.dataset.view === pageId) l.classList.add('active'); // Fixed: match HTML data-view
         });
 
         switch (pageId) {
             case 'dashboard':
-            case 'clients':
                 this.renderDashboard();
+                break;
+            case 'clients':
+                this.renderClientsPage();
                 break;
             case 'add-client':
                 contentArea.innerHTML = Views.clientForm();
@@ -96,7 +113,14 @@ const app = {
 
     renderDashboard: function () {
         const clients = dataManager.getClients();
-        contentArea.innerHTML = Views.dashboard(clients);
+        // Dashboard shows only recent 5 clients
+        const recentClients = clients.slice(-5).reverse(); // Clone and reverse for recency
+        contentArea.innerHTML = Views.dashboard(recentClients);
+    },
+
+    renderClientsPage: function () {
+        const clients = dataManager.getClients();
+        contentArea.innerHTML = Views.clientsPage(clients);
     },
 
     viewClient: function (clientId) {
@@ -321,10 +345,99 @@ const app = {
 
     showToast: function (msg) {
         console.log(msg);
+    },
+
+    // --- Backup & Profile ---
+    exportBackup: function () {
+        const data = localStorage.getItem(dataManager.STORAGE_KEY);
+        if (!data) {
+            this.showToast('لا توجد بيانات للتصدير');
+            return;
+        }
+
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `RawanDiet_Backup_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        this.showToast('تم تصدير النسخة الاحتياطية');
+    },
+
+    importBackup: function (input) {
+        if (!input.files || !input.files[0]) return;
+
+        const file = input.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+            try {
+                // Validate JSON
+                const data = JSON.parse(e.target.result);
+                if (Array.isArray(data)) {
+                    // It seems valid (array of clients)
+                    localStorage.setItem(dataManager.STORAGE_KEY, JSON.stringify(data));
+                    alert('تم استعادة النسخة الاحتياطية بنجاح! سيتم إعادة تحميل الصفحة.');
+                    location.reload();
+                } else {
+                    alert('الملف غير صالح (ليس بصيغة JSON صحيحة)');
+                }
+            } catch (err) {
+                alert('خطأ في قراءة الملف: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+    },
+
+    showUserProfile: function () {
+        const modalHtml = Views.userProfileModal();
+        const div = document.createElement('div');
+        div.innerHTML = modalHtml;
+        document.body.appendChild(div.firstElementChild);
+    },
+
+    // Custom Input Modal Logic
+    pendingInputCallback: null,
+
+    openCustomInput: function (title, label, value, callback) {
+        this.pendingInputCallback = callback;
+        const modalHtml = Views.inputModal(title, label, value);
+        const div = document.createElement('div');
+        div.innerHTML = modalHtml;
+        document.body.appendChild(div.firstElementChild);
+        document.getElementById('user-profile-modal').remove(); // Close profile
+    },
+
+    submitInputModal: function () {
+        const val = document.getElementById('modal-input-field').value;
+        if (this.pendingInputCallback) {
+            this.pendingInputCallback(val);
+        }
+        document.getElementById('input-modal').remove();
+        this.pendingInputCallback = null;
+    },
+
+    changeName: function (newName) {
+        if (newName && newName.trim()) {
+            localStorage.setItem('rawan_admin_name', newName.trim());
+            this.showToast('تم تغيير الاسم');
+            // Update UI
+            document.querySelectorAll('.admin-name').forEach(el => el.innerText = newName.trim());
+        }
+    },
+
+    changePassword: function (newPass) {
+        if (newPass && newPass.trim()) {
+            localStorage.setItem('rawan_admin_pass', newPass.trim());
+            this.showToast('تم تغيير كلمة المرور');
+        }
     }
 };
 
 window.app = app;
+
 window.setTheme = (theme) => {
     document.body.className = theme;
     dataManager.setTheme(theme);

@@ -1,0 +1,175 @@
+/* --- User Profile & Modal --- */
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--card-bg);
+    padding: 6px 6px 6px 16px;
+    border-radius: var(--radius-full);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--glass-border);
+    cursor: pointer;
+    transition: all var(--transition-medium);
+}
+
+.user-profile:hover {
+    background: white;
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.user-info-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    line-height: 1.2;
+}
+
+.admin-name {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--color-gray-900);
+}
+
+.admin-role {
+    font-size: 11px;
+    color: var(--primary-600);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+}
+
+/* Profile Modal Specifics */
+.profile-modal {
+    max-width: 350px !important;
+    padding: 0 !important;
+    overflow: hidden;
+}
+
+.close-modal-btn {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    /* RTL left */
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    color: var(--color-gray-500);
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.close-modal-btn:hover {
+    background: var(--color-gray-100);
+    color: var(--color-gray-800);
+}
+
+.profile-header-modal {
+    background: linear-gradient(135deg, var(--primary-50), white);
+    padding: 30px 20px;
+    text-align: center;
+    border-bottom: 1px solid var(--color-gray-100);
+}
+
+.large-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+    color: white;
+    font-size: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px auto;
+    box-shadow: 0 8px 20px var(--accent-glow);
+}
+
+.profile-header-modal h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--color-gray-900);
+}
+
+.role-badge {
+    display: inline-block;
+    background: var(--primary-100);
+    color: var(--primary-700);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 12px;
+    margin-top: 6px;
+}
+
+.profile-actions-list {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.profile-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 16px;
+    border: none;
+    background: transparent;
+    text-align: right;
+    /* RTL */
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--color-gray-700);
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 12px;
+    transition: all 0.2s;
+}
+
+.profile-action-btn i {
+    font-size: 20px;
+    color: var(--color-gray-400);
+    transition: color 0.2s;
+}
+
+.profile-action-btn:hover {
+    background: var(--color-gray-50);
+    color: var(--color-gray-900);
+}
+
+.profile-action-btn:hover i {
+    color: var(--primary-500);
+}
+
+.divider {
+    height: 1px;
+    background: var(--color-gray-100);
+    margin: 4px 10px;
+}
+
+.logout-btn {
+    color: #ef4444;
+}
+
+.logout-btn:hover {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.logout-btn i {
+    color: #fca5a5;
+}
+
+.logout-btn:hover i {
+    color: #ef4444;
+}

@@ -24,8 +24,11 @@ const Views = {
     dashboard: (clients) => `
         <header class="top-bar">
             <h2 id="page-title">لوحة التحكم</h2>
-            <div class="user-profile">
-                <span class="admin-name">المشرف</span>
+            <div class="user-profile" onclick="app.showUserProfile()">
+                <div class="user-info-text">
+                    <span class="admin-name">${localStorage.getItem('rawan_admin_name') || 'المشرف'}</span>
+                    <span class="admin-role">Admin</span>
+                </div>
                 <div class="avatar"><i class="ph ph-user"></i></div>
             </div>
         </header>
@@ -101,6 +104,9 @@ const Views = {
         <header class="top-bar">
             <h2 id="page-title">${client ? 'تعديل بيانات المشترك' : 'إضافة مشترك جديد'}</h2>
             <button class="btn-sm" onclick="app.navigate(${client ? `'client', ${client.id}` : "'dashboard'"})">إلغاء</button>
+             <div class="user-profile" onclick="app.showUserProfile()" style="margin-right:auto; margin-left:0;">
+                <div class="avatar"><i class="ph ph-user"></i></div>
+            </div>
         </header>
         
         <div class="form-card">
@@ -343,10 +349,68 @@ const Views = {
         </div>
     `,
 
+    clientsPage: (clients) => `
+        <header class="top-bar">
+            <h2 id="page-title">المشتركين</h2>
+            <div class="user-profile" onclick="app.showUserProfile()">
+                <div class="user-info-text">
+                    <span class="admin-name">${localStorage.getItem('rawan_admin_name') || 'المشرف'}</span>
+                    <span class="admin-role">Admin</span>
+                </div>
+                <div class="avatar"><i class="ph ph-user"></i></div>
+            </div>
+        </header>
+
+        <div class="recent-clients-section">
+            <div class="section-header">
+                <h3>إدارة المشتركين</h3>
+                <button class="btn-primary" onclick="app.navigate('add-client')">
+                    <i class="ph ph-plus-circle"></i> إضافة مشترك
+                </button>
+            </div>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>الاسم</th>
+                            <th>تاريخ الانضمام</th>
+                            <th>الوزن</th>
+                            <th>الحالة</th>
+                            <th>إجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${clients.map(client => `
+                            <tr>
+                                <td>${client.name}</td>
+                                <td>${client.joinDate}</td>
+                                <td>${client.currentWeight} كجم</td>
+                                <td><span class="status ${client.status}">${client.status === 'active' ? 'نشط' : 'غير فعال'}</span></td>
+                                <td>
+                                    <div style="display:flex; gap:8px; justify-content:flex-end;">
+                                        <button class="btn-sm" onclick="app.viewClient(${client.id})" title="عرض"><i class="ph ph-eye"></i></button>
+                                        <button class="btn-sm" style="background:#fef2f2; color:#ef4444;" onclick="app.confirmAction('حذف المشترك؟', () => app.deleteClient(${client.id}))" title="حذف"><i class="ph ph-trash"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `,
+
     settings: () => `
         <header class="top-bar">
             <h2 id="page-title">الإعدادات</h2>
-            <div class="user-profile"><span class="admin-name">المشرف</span><div class="avatar"><i class="ph ph-user"></i></div></div>
+            <div class="user-profile" onclick="app.showUserProfile()">
+                <div class="user-info-text">
+                    <span class="admin-name">${localStorage.getItem('rawan_admin_name') || 'المشرف'}</span>
+                    <span class="admin-role">Admin</span>
+                </div>
+                <div class="avatar"><i class="ph ph-user"></i></div>
+            </div>
         </header>
 
         <div class="settings-card">
@@ -361,10 +425,19 @@ const Views = {
                      <button class="theme-btn blue-btn" onclick="setTheme('theme-blue')" title="أزرق"></button>
                 </div>
             </div>
-            <!-- ... Settings same as before but brief ... -->
-            <div class="settings-item">
-                 <div class="settings-info"><div><h4>تغيير كلمة المرور</h4><p>تحديث كلمة مرور المشرف</p></div></div>
-                <button class="btn-sm" onclick="alert('سيتم تفعيل هذه الخاصية قريباً')">تغيير</button>
+            
+             <div class="settings-item">
+                <div class="settings-info">
+                    <div class="icon-box"><i class="ph ph-database"></i></div>
+                    <div><h4>النسخة الاحتياطية</h4><p>تصدير أو استيراد البيانات</p></div>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn-sm" onclick="app.exportBackup()"><i class="ph ph-download-simple"></i> تصدير</button>
+                    <button class="btn-sm" onclick="document.getElementById('import-file').click()" style="background:#e0f2fe; color:#0284c7;">
+                        <i class="ph ph-upload-simple"></i> استيراد
+                    </button>
+                    <input type="file" id="import-file" style="display:none" accept=".json" onchange="app.importBackup(this)">
+                </div>
             </div>
         </div>
         
@@ -374,9 +447,32 @@ const Views = {
                 <button class="btn-danger" onclick="app.confirmAction('تحذير: سيتم حذف جميع البيانات نهائياً! هل أنت متأكد؟', () => app.resetSystem())">حذف الكل</button>
             </div>
         </div>
+    `,
 
-        <div style="text-align:center; margin-top:40px;">
-            <button class="btn-secondary" onclick="app.logout()"><i class="ph ph-sign-out"></i> تسجيل الخروج</button>
+    userProfileModal: () => `
+        <div class="modal-overlay" id="user-profile-modal" style="display:flex;" onclick="if(event.target === this) this.remove()">
+            <div class="modal profile-modal">
+                <button class="close-modal-btn" onclick="document.getElementById('user-profile-modal').remove()"><i class="ph ph-x"></i></button>
+                
+                <div class="profile-header-modal">
+                    <div class="large-avatar"><i class="ph ph-user"></i></div>
+                    <h3>${localStorage.getItem('rawan_admin_name') || 'المشرف'}</h3>
+                    <p class="role-badge">مسؤول النظام</p>
+                </div>
+
+                <div class="profile-actions-list">
+                    <button class="profile-action-btn" onclick="app.openCustomInput('تغيير الاسم', 'الاسم الجديد', '${localStorage.getItem('rawan_admin_name') || 'المشرف'}', (val) => app.changeName(val))">
+                        <i class="ph ph-pencil-simple"></i> تغيير الاسم
+                    </button>
+                    <button class="profile-action-btn" onclick="app.openCustomInput('تغيير كلمة المرور', 'كلمة المرور الجديدة', '', (val) => app.changePassword(val))">
+                        <i class="ph ph-lock-key"></i> تغيير كلمة المرور
+                    </button>
+                    <div class="divider"></div>
+                    <button class="profile-action-btn logout-btn" onclick="app.logout()">
+                        <i class="ph ph-sign-out"></i> تسجيل الخروج
+                    </button>
+                </div>
+            </div>
         </div>
     `,
 
@@ -394,7 +490,22 @@ const Views = {
         </div>
     `,
 
-    // Image Modal
+    inputModal: (title, label, value) => `
+        <div class="modal-overlay" id="input-modal" style="display:flex;">
+            <div class="modal">
+                <h3>${title}</h3>
+                <div style="text-align:right; margin-bottom:20px;">
+                    <label style="font-weight:700; display:block; margin-bottom:8px;">${label}</label>
+                    <input type="text" id="modal-input-field" class="form-control" value="${value}">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="document.getElementById('input-modal').remove()">إلغاء</button>
+                    <button class="btn-primary" onclick="app.submitInputModal()">حفظ</button>
+                </div>
+            </div>
+        </div>
+    `,
+
     imageModal: (src) => `
         <div class="modal-overlay" id="image-modal" style="display:flex;" onclick="document.getElementById('image-modal').remove()">
              <div style="position:relative; max-width:90%; max-height:90%;">

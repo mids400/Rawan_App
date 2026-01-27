@@ -15,6 +15,8 @@
     <link rel="stylesheet" href="css/variables.css">
     <link rel="stylesheet" href="css/themes.css">
     <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="css/profile.css">
 
     <!-- Icons (Phosphor Icons for modern look) -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
@@ -22,26 +24,24 @@
 
 <body class="theme-orange">
 
-    <div class="app-container">
+    <div id="app">
         <!-- Sidebar -->
         <aside class="sidebar">
-            <div class="logo-container">
-                <div class="logo-icon">
-                    <i class="ph ph-plant"></i>
-                </div>
+            <div class="logo">
+                <i class="ph ph-plant"></i>
                 <h1>روان دايت</h1>
             </div>
 
             <nav class="nav-menu">
-                <a href="#" class="nav-link active" data-page="dashboard">
-                    <i class="ph ph-house"></i>
+                <a href="#" class="nav-link active" data-view="dashboard">
+                    <i class="ph ph-squares-four"></i>
                     <span>الرئيسية</span>
                 </a>
-                <a href="#" class="nav-link" data-page="clients">
+                <a href="#" class="nav-link" data-view="clients">
                     <i class="ph ph-users"></i>
                     <span>المشتركين</span>
                 </a>
-                <a href="#" class="nav-link" data-page="settings">
+                <a href="#" class="nav-link" data-view="settings">
                     <i class="ph ph-gear"></i>
                     <span>الإعدادات</span>
                 </a>
@@ -56,6 +56,10 @@
 
         <!-- Main Content -->
         <main class="main-content">
+            <!-- Mobile Menu Toggle (Visible only on small screens) -->
+            <button class="mobile-menu-toggle">
+                <i class="ph ph-list"></i>
+            </button>
             <!-- Header removed from here, now dynamic in views -->
 
 
