@@ -1,172 +1,169 @@
 class DataManager {
     constructor() {
-        this.STORAGE_KEY = 'rawan_diet_data_v2'; // Bumped version to ensure clean slate for new structure if needed
-        this.data = this.loadData();
-    }
-
-    loadData() {
-        const stored = localStorage.getItem(this.STORAGE_KEY);
-        if (stored) {
-            return JSON.parse(stored);
-        }
-        return this.getInitialData();
-    }
-
-    saveData() {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
-    }
-
-    getInitialData() {
-        const defaultSchedule = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'].map(day => ({
-            day: day,
-            breakfast: 'شوفان بالحليب والموز',
-            lunch: 'صدر دجاج مشوي 150غ',
-            dinner: 'سلطة تونة',
-            workout: 'كارديو 45 دقيقة'
-        }));
-
-        return {
-            clients: [
-                {
-                    id: 1,
-                    name: 'سارة محمد',
-                    joinDate: '2024-01-10',
-                    currentWeight: 75,
-                    startWeight: 85,
-                    height: 165,
-                    age: 28,
-                    targetWeight: 65,
-                    status: 'active',
-                    notes: 'حساسية من اللاكتوز',
-                    progressLogs: [],
-                    schedule: defaultSchedule
-                },
-                {
-                    id: 2,
-                    name: 'خالد عمر',
-                    joinDate: '2024-01-12',
-                    currentWeight: 92,
-                    startWeight: 95,
-                    height: 180,
-                    age: 32,
-                    targetWeight: 85,
-                    status: 'active',
-                    notes: '',
-                    progressLogs: [],
-                    schedule: defaultSchedule
-                }
-            ],
-            userSettings: {
-                theme: 'theme-orange'
-            }
+        this.db = firebase.firestore();
+        this.clients = [];
+        this.authData = {
+            adminName: localStorage.getItem('rawan_admin_name') || 'المشرف',
+            // Simple password check usually done server side, but for this level:
+            // We will rely on the local storage for the "session", 
+            // but we could store the correct password in Firestore 'settings' collection.
         };
+        this.onChangeCallback = null;
     }
 
+    // --- Initialization & Real-time Listener ---
+    init(callback) {
+        this.onChangeCallback = callback;
+
+        // Listen to 'clients' collection
+        this.db.collection('clients').onSnapshot((snapshot) => {
+            this.clients = [];
+            snapshot.forEach((doc) => {
+                let client = doc.data();
+                client.id = doc.id; // Map doc ID to client ID
+                this.clients.push(client);
+            });
+
+            console.log("Data synced from Cloud:", this.clients.length, "clients");
+            if (this.onChangeCallback) this.onChangeCallback();
+        }, (error) => {
+            console.error("Error syncing data: ", error);
+            // Fail silently or show toast?
+            // alert("خطأ في الاتصال بقاعدة البيانات");
+        });
+    }
+
+    // --- CRUD Operations ---
+
+    // Clients
     getClients() {
-        return this.data.clients;
+        return this.clients;
     }
 
     getClientById(id) {
-        return this.data.clients.find(c => c.id == id);
+        return this.clients.find(c => c.id == id);
     }
 
-    addClient(client) {
-        client.id = Date.now();
-        client.progressLogs = [];
-        // Assign default schedule if not present
-        if (!client.schedule) {
-            client.schedule = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'].map(day => ({
-                day: day,
-                breakfast: '',
-                lunch: '',
-                dinner: '',
-                workout: ''
-            }));
+    async addClient(client) {
+        try {
+            // Ensure schedule exists
+            if (!client.schedule || client.schedule.length === 0) {
+                client.schedule = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'].map(day => ({
+                    day: day,
+                    breakfast: '',
+                    lunch: '',
+                    dinner: '',
+                    workout: ''
+                }));
+            }
+
+            // Remove 'id' if it was set by date, let Firestore generate it
+            const docRef = await this.db.collection('clients').add(client);
+            console.log("Client added with ID: ", docRef.id);
+            // No need to manually push to this.clients, onSnapshot will handle it.
+            return true;
+        } catch (e) {
+            console.error("Error adding client: ", e);
+            alert("خطأ في الحفظ: " + e.message);
+            return false;
         }
-        this.data.clients.push(client);
-        this.saveData();
     }
 
-    updateClient(updatedClient) {
-        const index = this.data.clients.findIndex(c => c.id == updatedClient.id);
-        if (index !== -1) {
-            // Merge to preserve schedule/logs if not passed
-            this.data.clients[index] = { ...this.data.clients[index], ...updatedClient };
-            this.saveData();
+    async updateClient(updatedClient) {
+        try {
+            const id = updatedClient.id;
+            // Create a clean object without the ID field itself for update
+            const { id: _, ...dataToUpdate } = updatedClient;
+            await this.db.collection('clients').doc(id).update(dataToUpdate);
+        } catch (e) {
+            console.error(e);
         }
     }
 
-    deleteClient(id) {
-        this.data.clients = this.data.clients.filter(c => c.id != id);
-        this.saveData();
+    async deleteClient(id) {
+        try {
+            await this.db.collection('clients').doc(id).delete();
+        } catch (e) {
+            console.error(e);
+        }
     }
 
-    toggleStatus(clientId) {
+    async toggleStatus(clientId) {
         const client = this.getClientById(clientId);
         if (client) {
-            client.status = client.status === 'active' ? 'inactive' : 'active';
-            this.saveData();
+            const newStatus = client.status === 'active' ? 'inactive' : 'active';
+            await this.db.collection('clients').doc(clientId).update({ status: newStatus });
         }
     }
 
-    updateSchedule(clientId, newSchedule) {
+    // Schedule
+    async updateSchedule(clientId, newSchedule) {
+        await this.db.collection('clients').doc(clientId).update({ schedule: newSchedule });
+    }
+
+    // Progress Logs
+    async addProgressLog(clientId, logEntry) {
         const client = this.getClientById(clientId);
         if (client) {
-            client.schedule = newSchedule;
-            this.saveData();
+            logEntry.id = Date.now(); // Keep using timestamp for sub-item ID
+
+            // Use arrayUnion to add to the array
+            // Note: Update 'currentWeight' as well
+            await this.db.collection('clients').doc(clientId).update({
+                progressLogs: firebase.firestore.FieldValue.arrayUnion(logEntry),
+                currentWeight: logEntry.weight
+            });
         }
     }
 
-    addProgressLog(clientId, logEntry) {
-        const client = this.getClientById(clientId);
-        if (client) {
-            logEntry.id = Date.now(); // Unique ID for delete
-            // logEntry: { date: '...', weight: 80, measurements: '...', notes: '...' }
-            client.progressLogs.push(logEntry);
-            client.currentWeight = logEntry.weight; // Update main current weight
-            this.saveData();
-        }
-    }
-
-    updateProgressLog(clientId, updatedLog) {
+    async updateProgressLog(clientId, updatedLog) {
+        // Firestore array manipulation is hard for updates. 
+        // Easiest strategy: Read user, replace array, Write user.
+        // Or remove old, add new.
+        // We will do Read-Modify-Write since we have 'client' locally.
         const client = this.getClientById(clientId);
         if (client) {
             const index = client.progressLogs.findIndex(l => l.id == updatedLog.id);
             if (index !== -1) {
-                // Keep existing photo if not replaced
+                // Keep photo logic
                 if (!updatedLog.photo && client.progressLogs[index].photo) {
                     updatedLog.photo = client.progressLogs[index].photo;
                 }
-                client.progressLogs[index] = updatedLog;
 
-                // Update current weight if this is the latest log
-                // Simple logic: just check if it's the last one in the array or re-sort? 
-                // For now, let's assume last added is current, but editing might change dates.
-                // Let's just update currentWeight if it's the most recent by date.
-                const sortedLogs = [...client.progressLogs].sort((a, b) => new Date(b.date) - new Date(a.date));
-                if (sortedLogs.length > 0) {
-                    client.currentWeight = sortedLogs[0].weight;
-                }
+                const newLogs = [...client.progressLogs];
+                newLogs[index] = updatedLog;
 
-                this.saveData();
+                // Sort and get weight
+                const sortedLogs = [...newLogs].sort((a, b) => new Date(b.date) - new Date(a.date));
+                const newWeight = sortedLogs.length > 0 ? sortedLogs[0].weight : client.currentWeight;
+
+                await this.db.collection('clients').doc(clientId).update({
+                    progressLogs: newLogs,
+                    currentWeight: newWeight
+                });
             }
         }
     }
 
-    deleteProgressLog(clientId, logId) {
+    async deleteProgressLog(clientId, logId) {
         const client = this.getClientById(clientId);
         if (client) {
-            client.progressLogs = client.progressLogs.filter(log => log.id != logId);
-            this.saveData();
+            const logToDelete = client.progressLogs.find(l => l.id == logId);
+            if (logToDelete) {
+                await this.db.collection('clients').doc(clientId).update({
+                    progressLogs: firebase.firestore.FieldValue.arrayRemove(logToDelete)
+                });
+            }
         }
     }
 
+    // Theme (Local is fine for theme?)
+    // User requested "Color prefs on device is fine". 
     getTheme() {
-        return this.data.userSettings.theme;
+        return this.data?.userSettings?.theme || localStorage.getItem('rawan_theme') || 'theme-orange';
     }
 
     setTheme(themeName) {
-        this.data.userSettings.theme = themeName;
-        this.saveData();
+        localStorage.setItem('rawan_theme', themeName);
     }
 }

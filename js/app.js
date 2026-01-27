@@ -11,6 +11,21 @@ const app = {
         this.checkAuth();
         this.setupNavigation();
 
+        // Initialize DataManager with a callback to render when data changes
+        dataManager.init(() => {
+            console.log("App: Data updated, re-rendering...");
+            // Only re-render if we are on a page that needs it
+            const activePage = document.querySelector('.nav-link.active')?.dataset.view || 'dashboard';
+
+            // Smart Re-render
+            if (activePage === 'dashboard') this.renderDashboard();
+            if (activePage === 'clients') this.renderClientsPage();
+
+            // If viewing a specific client, refresh that view? 
+            // For now, let's keep it simple. If deep inside a form, re-rendering might lose input.
+            // Ideally we check if we are just "viewing" or "editing".
+        });
+
         // Mobile Sidebar Toggle Listener
         document.addEventListener('click', (e) => {
             const sidebar = document.querySelector('.sidebar');

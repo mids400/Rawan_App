@@ -84,10 +84,10 @@ const Views = {
                                 <td><span class="status ${client.status}">${client.status === 'active' ? 'نشط' : 'غير فعال'}</span></td>
                                 <td>
                                     <div style="display:flex; gap:8px; justify-content:flex-end;">
-                                        <button class="btn-sm" onclick="app.viewClient(${client.id})" title="عرض">
+                                        <button class="btn-sm" onclick="app.viewClient('${client.id}')" title="عرض">
                                             <i class="ph ph-eye"></i>
                                         </button>
-                                        <button class="btn-sm" style="background:#fef2f2; color:#ef4444;" onclick="app.confirmAction('هل أنت متأكد من حذف المشترك؟', () => app.deleteClient(${client.id}))" title="حذف">
+                                        <button class="btn-sm" style="background:#fef2f2; color:#ef4444;" onclick="app.confirmAction('هل أنت متأكد من حذف المشترك؟', () => app.deleteClient('${client.id}'))" title="حذف">
                                             <i class="ph ph-trash"></i>
                                         </button>
                                     </div>
@@ -103,14 +103,14 @@ const Views = {
     clientForm: (client = null) => `
         <header class="top-bar">
             <h2 id="page-title">${client ? 'تعديل بيانات المشترك' : 'إضافة مشترك جديد'}</h2>
-            <button class="btn-sm" onclick="app.navigate(${client ? `'client', ${client.id}` : "'dashboard'"})">إلغاء</button>
+            <button class="btn-sm" onclick="app.navigate(${client ? `'client', '${client.id}'` : "'dashboard'"})">إلغاء</button>
              <div class="user-profile" onclick="app.showUserProfile()" style="margin-right:auto; margin-left:0;">
                 <div class="avatar"><i class="ph ph-user"></i></div>
             </div>
         </header>
         
         <div class="form-card">
-            <form id="client-form" onsubmit="app.handleClientSubmit(event, ${client ? client.id : 'null'})">
+            <form id="client-form" onsubmit="app.handleClientSubmit(event, ${client ? `'${client.id}'` : 'null'})">
                 <div class="form-grid">
                     <div class="form-group form-grid-full">
                         <label>الاسم الكامل</label>
@@ -165,10 +165,10 @@ const Views = {
             </div>
             
             <div style="display:flex; gap:10px;">
-                <button class="btn-sm" onclick="app.confirmAction('هل أنت متأكد من تغيير حالة الاشتراك؟', () => app.toggleStatus(${client.id}))">
+                <button class="btn-sm" onclick="app.confirmAction('هل أنت متأكد من تغيير حالة الاشتراك؟', () => app.toggleStatus('${client.id}'))">
                     ${client.status === 'active' ? '<i class="ph ph-pause"></i> تجميد' : '<i class="ph ph-play"></i> تفعيل'}
                 </button>
-                <button class="btn-primary" onclick="app.navigate('edit-client', ${client.id})">
+                <button class="btn-primary" onclick="app.navigate('edit-client', '${client.id}')">
                     <i class="ph ph-pencil-simple"></i> تعديل
                 </button>
             </div>
@@ -194,12 +194,12 @@ const Views = {
         <div id="schedule" class="tab-content active">
             <div class="section-header">
                 <h3>جدول التمارين والوجبات</h3>
-                <button class="btn-sm" onclick="app.enableScheduleEdit(${client.id})" id="edit-schedule-btn">
+                <button class="btn-sm" onclick="app.enableScheduleEdit('${client.id}')" id="edit-schedule-btn">
                     <i class="ph ph-pencil"></i> تعديل الجدول
                 </button>
                 <div id="save-schedule-actions" style="display:none; gap:10px;">
-                    <button class="btn-sm" onclick="app.cancelScheduleEdit(${client.id})">إلغاء</button>
-                    <button class="btn-primary" onclick="app.saveSchedule(${client.id})">حفظ التغييرات</button>
+                    <button class="btn-sm" onclick="app.cancelScheduleEdit('${client.id}')">إلغاء</button>
+                    <button class="btn-primary" onclick="app.saveSchedule('${client.id}')">حفظ التغييرات</button>
                 </div>
             </div>
 
@@ -251,7 +251,7 @@ const Views = {
                 <!-- Add/Edit Progress Form -->
                 <div id="add-progress-form" style="display:none; background:var(--color-gray-50); padding:24px; border-radius:16px; margin-bottom:24px; border:1px solid var(--color-gray-200);">
                     <h4 id="progress-form-title" style="margin-bottom:16px;">إضافة تحديث جديد</h4>
-                    <form id="real-progress-form" onsubmit="app.handleAddProgress(event, ${client.id})">
+                    <form id="real-progress-form" onsubmit="app.handleAddProgress(event, '${client.id}')">
                         <input type="hidden" name="logId" id="progress-log-id">
                         <div class="form-grid" style="grid-template-columns: repeat(3, 1fr); gap:16px;">
                             <div class="form-group">
@@ -312,10 +312,10 @@ const Views = {
                                     <td>${log.photo ? `<img src="${log.photo}" style="width:40px; height:40px; border-radius:4px; object-fit:cover; cursor:pointer;" onclick="app.viewImage('${log.photo}')">` : '-'}</td>
                                     <td>
                                         <div style="display:flex; gap:6px; justify-content:center;">
-                                            <button class="btn-sm" style="color:var(--primary-600); background:transparent;" onclick="app.editProgress(${client.id}, ${log.id})" title="تعديل">
+                                            <button class="btn-sm" style="color:var(--primary-600); background:transparent;" onclick="app.editProgress('${client.id}', ${log.id})" title="تعديل">
                                                 <i class="ph ph-pencil-simple"></i>
                                             </button>
-                                            <button class="btn-sm" style="color:#ef4444; background:transparent;" onclick="app.confirmAction('حذف هذا التحديث؟', () => app.deleteProgress(${client.id}, ${log.id}))" title="حذف">
+                                            <button class="btn-sm" style="color:#ef4444; background:transparent;" onclick="app.confirmAction('حذف هذا التحديث؟', () => app.deleteProgress('${client.id}', ${log.id}))" title="حذف">
                                                 <i class="ph ph-trash"></i>
                                             </button>
                                         </div>
@@ -389,8 +389,8 @@ const Views = {
                                 <td><span class="status ${client.status}">${client.status === 'active' ? 'نشط' : 'غير فعال'}</span></td>
                                 <td>
                                     <div style="display:flex; gap:8px; justify-content:flex-end;">
-                                        <button class="btn-sm" onclick="app.viewClient(${client.id})" title="عرض"><i class="ph ph-eye"></i></button>
-                                        <button class="btn-sm" style="background:#fef2f2; color:#ef4444;" onclick="app.confirmAction('حذف المشترك؟', () => app.deleteClient(${client.id}))" title="حذف"><i class="ph ph-trash"></i></button>
+                                        <button class="btn-sm" onclick="app.viewClient('${client.id}')" title="عرض"><i class="ph ph-eye"></i></button>
+                                        <button class="btn-sm" style="background:#fef2f2; color:#ef4444;" onclick="app.confirmAction('حذف المشترك؟', () => app.deleteClient('${client.id}'))" title="حذف"><i class="ph ph-trash"></i></button>
                                     </div>
                                 </td>
                             </tr>
