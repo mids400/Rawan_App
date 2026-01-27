@@ -37,6 +37,7 @@ const app = {
         if (session === 'true') {
             this.isAuthenticated = true;
             sidebar.style.display = 'flex';
+            document.body.classList.add('logged-in'); // Enable Mobile Menu
             this.navigate('dashboard');
         } else {
             this.isAuthenticated = false;
@@ -46,6 +47,7 @@ const app = {
 
     showLogin: function () {
         sidebar.style.display = 'none';
+        document.body.classList.remove('logged-in'); // Disable Mobile Menu
         contentArea.innerHTML = Views.login();
     },
 
@@ -56,6 +58,7 @@ const app = {
             sessionStorage.setItem('rawan_auth', 'true');
             this.isAuthenticated = true;
             sidebar.style.display = 'flex';
+            document.body.classList.add('logged-in'); // Enable Mobile Menu
             this.navigate('dashboard');
         } else {
             alert('خطأ في المعلومات');
@@ -74,6 +77,11 @@ const app = {
                 e.preventDefault();
                 const page = link.dataset.view; // Fixed: match HTML data-view
                 this.navigate(page);
+
+                // Auto-close sidebar on mobile
+                if (sidebar.classList.contains('active')) {
+                    sidebar.classList.remove('active');
+                }
             });
         });
     },
@@ -376,13 +384,14 @@ const app = {
             try {
                 // Validate JSON
                 const data = JSON.parse(e.target.result);
-                if (Array.isArray(data)) {
-                    // It seems valid (array of clients)
+                // Check if it's the expected object structure (has clients array) OR just an array (legacy support)
+                if ((data && typeof data === 'object' && Array.isArray(data.clients)) || Array.isArray(data)) {
+                    // Valid structure
                     localStorage.setItem(dataManager.STORAGE_KEY, JSON.stringify(data));
                     alert('تم استعادة النسخة الاحتياطية بنجاح! سيتم إعادة تحميل الصفحة.');
                     location.reload();
                 } else {
-                    alert('الملف غير صالح (ليس بصيغة JSON صحيحة)');
+                    alert('الملف غير صالح: يجب أن يحتوي على بيانات المشتركين');
                 }
             } catch (err) {
                 alert('خطأ في قراءة الملف: ' + err.message);

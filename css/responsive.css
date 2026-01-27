@@ -3,15 +3,7 @@
 /* Mobile Menu Toggle Button (Default Hidden) */
 .mobile-menu-toggle {
     display: none;
-    background: white;
-    border: none;
-    padding: 10px;
-    font-size: 24px;
-    border-radius: var(--radius-md);
-    color: var(--color-gray-700);
-    box-shadow: var(--shadow-sm);
-    cursor: pointer;
-    width: fit-content;
+    /* Hidden on Desktop */
 }
 
 /* Tablet & Mobile Breakpoints */
@@ -28,18 +20,38 @@
         flex-direction: column;
     }
 
+    /* Body class triggers visibility on mobile */
+    body.logged-in .mobile-menu-toggle {
+        display: flex;
+        /* Show only when logged in */
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 1002;
+        background: white;
+        border: none;
+        padding: 10px;
+        font-size: 24px;
+        border-radius: var(--radius-md);
+        color: var(--color-gray-700);
+        box-shadow: var(--shadow-sm);
+        cursor: pointer;
+        width: 45px;
+        height: 45px;
+        align-items: center;
+        justify-content: center;
+    }
+
     /* Sidebar Mobile Logic */
     .sidebar {
         position: fixed;
         right: -300px;
-        /* Hidden by default RTL (matches width) */
         top: 0;
         bottom: 0;
         z-index: 1000;
-        transition: right 0.3s ease;
+        transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: -5px 0 20px rgba(0, 0, 0, 0.1);
         width: 280px;
-        /* Slightly narrower for mobile */
     }
 
     .sidebar.active {
@@ -49,12 +61,28 @@
     .main-content {
         width: 100%;
         padding: 16px;
-        /* Reduced padding */
+        padding-top: 80px;
+        /* Space for the absolute top bar/button */
         padding-bottom: 80px;
+        position: relative;
+        /* Context for absolute button */
     }
 
-    .mobile-menu-toggle {
-        display: block;
+    /* Adjust Top Bar to align with absolute button */
+    .top-bar {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        /* Spread Title vs Profile */
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-bottom: 24px;
+        padding-right: 50px;
+        /* Make space for the menu button */
+    }
+
+    .top-bar h2 {
+        font-size: 20px;
     }
 
     /* Dashboard Stats */
@@ -111,19 +139,6 @@
     .info-item {
         min-width: 100px;
         margin-bottom: 10px;
-    }
-
-    .top-bar {
-        flex-direction: row;
-        /* Keep row for toggle + title presence */
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 16px;
-        margin-bottom: 24px;
-    }
-
-    .top-bar h2 {
-        font-size: 20px;
     }
 
     .user-profile {
