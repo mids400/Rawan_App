@@ -372,21 +372,27 @@ const app = {
 
     // --- Backup & Profile ---
     exportBackup: function () {
-        const data = localStorage.getItem(dataManager.STORAGE_KEY);
-        if (!data) {
-            this.showToast('لا توجد بيانات للتصدير');
-            return;
-        }
+        // Use dataManager.getClients() which has the latest Cloud data
+        const clients = dataManager.getClients();
+        const settings = {
+            theme: dataManager.getTheme()
+        };
 
-        const blob = new Blob([data], { type: 'application/json' });
+        const backupData = {
+            clients: clients,
+            userSettings: settings,
+            exportDate: new Date().toISOString()
+        };
+
+        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `RawanDiet_Backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.download = `RawanDiet_CloudBackup_${new Date().toISOString().split('T')[0]}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        this.showToast('تم تصدير النسخة الاحتياطية');
+        this.showToast('تم تصدير النسخة الاحتياطية من السحابة');
     },
 
     importBackup: function (input) {
@@ -395,21 +401,46 @@ const app = {
         const file = input.files[0];
         const reader = new FileReader();
 
-        reader.onload = function (e) {
+        reader.onload = async function (e) {
             try {
-                // Validate JSON
                 const data = JSON.parse(e.target.result);
-                // Check if it's the expected object structure (has clients array) OR just an array (legacy support)
-                if ((data && typeof data === 'object' && Array.isArray(data.clients)) || Array.isArray(data)) {
-                    // Valid structure
-                    localStorage.setItem(dataManager.STORAGE_KEY, JSON.stringify(data));
-                    alert('تم استعادة النسخة الاحتياطية بنجاح! سيتم إعادة تحميل الصفحة.');
-                    location.reload();
+
+                // normalize data
+                let clientsToImport = [];
+                if (Array.isArray(data)) {
+                    clientsToImport = data;
+                } else if (data && data.clients && Array.isArray(data.clients)) {
+                    clientsToImport = data.clients;
+                }
+
+                if (clientsToImport.length > 0) {
+                    if (confirm(`تم العثور على ${clientsToImport.length} مشترك. هل تريد رفعهم إلى قاعدة البيانات السحابية؟ (قد يستغرق وقتاً)`)) {
+                        app.showToast('جاري الرفع... يرجى الانتظار');
+
+                        let successCount = 0;
+                        for (const client of clientsToImport) {
+                            // Clean up ID to ensure new cloud ID is generated or handle conflict?
+                            // Safest is to treat as new entry or update if ID matches? 
+                            // Firestore add() generates new ID. let's force new IDs to avoid conflicts with string/number mismatch
+                            // BUT if we want to preserve history, maybe check naming?
+                            // Let's just Add them.
+
+                            // Remove the old ID to let Firebase generate a new string ID
+                            const { id, ...clientData } = client;
+
+                            // Add to Firebase
+                            const success = await dataManager.addClient(clientData);
+                            if (success) successCount++;
+                        }
+
+                        alert(`تم استيراد ورفع ${successCount} مشترك بنجاح!`);
+                    }
                 } else {
-                    alert('الملف غير صالح: يجب أن يحتوي على بيانات المشتركين');
+                    alert('لا توجد بيانات مشتركين في الملف');
                 }
             } catch (err) {
-                alert('خطأ في قراءة الملف: ' + err.message);
+                console.error(err);
+                alert('خطأ في الملف: ' + err.message);
             }
         };
         reader.readAsText(file);
