@@ -23,6 +23,10 @@ const app = {
         // Initialize DataManager with a callback to render when data changes
         dataManager.init(() => {
             console.log("App: Data updated, re-rendering...");
+
+            // SECURITY CHECK: Do not render content if not logged in
+            if (!this.isAuthenticated) return;
+
             // Only re-render if we are on a page that needs it
             const activePage = document.querySelector('.nav-link.active')?.dataset.view || 'dashboard';
 
@@ -62,11 +66,16 @@ const app = {
     },
 
     checkAuth: function () {
-        const session = sessionStorage.getItem('rawan_auth');
+        // Cleanup old keys if any
+        localStorage.removeItem('rawan_auth');
+        sessionStorage.removeItem('rawan_auth');
+
+        // Check new session key
+        const session = sessionStorage.getItem('rawan_app_session');
         if (session === 'true') {
             this.isAuthenticated = true;
             sidebar.style.display = 'flex';
-            document.body.classList.add('logged-in'); // Enable Mobile Menu
+            document.body.classList.add('logged-in');
             this.navigate('dashboard');
         } else {
             this.isAuthenticated = false;
@@ -76,7 +85,7 @@ const app = {
 
     showLogin: function () {
         sidebar.style.display = 'none';
-        document.body.classList.remove('logged-in'); // Disable Mobile Menu
+        document.body.classList.remove('logged-in');
         contentArea.innerHTML = Views.login();
     },
 
@@ -84,10 +93,11 @@ const app = {
         e.preventDefault();
         const formData = new FormData(e.target);
         if (formData.get('username') === 'admin' && formData.get('password') === '123456') {
-            sessionStorage.setItem('rawan_auth', 'true');
+            // Use new key
+            sessionStorage.setItem('rawan_app_session', 'true');
             this.isAuthenticated = true;
             sidebar.style.display = 'flex';
-            document.body.classList.add('logged-in'); // Enable Mobile Menu
+            document.body.classList.add('logged-in');
             this.navigate('dashboard');
         } else {
             alert('خطأ في المعلومات');
@@ -95,8 +105,14 @@ const app = {
     },
 
     logout: function () {
-        sessionStorage.removeItem('rawan_auth');
+        // 1. Close ALL Modals (Profile, Confirm, etc.)
+        document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
+
+        // 2. Clear Session
+        sessionStorage.removeItem('rawan_app_session');
         this.isAuthenticated = false;
+
+        // 3. Show Login
         this.showLogin();
     },
 
@@ -257,18 +273,19 @@ const app = {
         };
 
         if (clientId) {
+            // EDIT MODE
+            this.currentClientId = clientId; // Force state sync
             clientData.id = clientId;
-            // Don't update currentWeight from here for existing clients, keep their progress integrity
-            // But if we wanted to fix a "bad" currentWeight manually? User asked for it to be read-only.
-            // So we skip it.
 
             dataManager.updateClient(clientData);
             this.showToast('تم التحديث');
+
+            // Stay on the client view
             this.viewClient(clientId, true);
         } else {
             // New Client
             clientData.joinDate = new Date().toISOString().split('T')[0];
-            clientData.currentWeight = clientData.startWeight; // Set initial current = start
+            clientData.currentWeight = clientData.startWeight;
 
             dataManager.addClient(clientData);
             this.showToast('تم الإضافة');
