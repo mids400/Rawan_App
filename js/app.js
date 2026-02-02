@@ -5,11 +5,20 @@ const sidebar = document.querySelector('.sidebar');
 const app = {
     pendingConfirmAction: null,
     isAuthenticated: false,
+    quill: null, // Removed
+    tinymceInitialized: false,
+
+    // System Tabs State
+    currentSystemPageIndex: 0,
 
     init: function () {
         this.loadTheme();
         this.checkAuth();
         this.setupNavigation();
+
+        // State to track current deep view
+        this.currentClientId = null;
+
 
         // Initialize DataManager with a callback to render when data changes
         dataManager.init(() => {
@@ -19,11 +28,16 @@ const app = {
 
             // Smart Re-render
             if (activePage === 'dashboard') this.renderDashboard();
-            if (activePage === 'clients') this.renderClientsPage();
-
-            // If viewing a specific client, refresh that view? 
-            // For now, let's keep it simple. If deep inside a form, re-rendering might lose input.
-            // Ideally we check if we are just "viewing" or "editing".
+            if (activePage === 'clients') {
+                // Check if we are viewing a specific client details.
+                // If this.currentClientId is set, we prefer to re-render the CLIENT DETAIL view
+                // instead of the list.
+                if (this.currentClientId) {
+                    this.viewClient(this.currentClientId, true); // true = preserve tab?
+                } else {
+                    this.renderClientsPage();
+                }
+            }
         });
 
         // Mobile Sidebar Toggle Listener
@@ -106,8 +120,18 @@ const app = {
 
         document.querySelectorAll('.nav-link').forEach(l => {
             l.classList.remove('active');
-            if (l.dataset.view === pageId) l.classList.add('active'); // Fixed: match HTML data-view
+            let targetView = pageId;
+            // Map sub-views to main nav items
+            if (['client', 'add-client', 'edit-client'].includes(pageId)) {
+                targetView = 'clients';
+            }
+            if (l.dataset.view === targetView) l.classList.add('active');
         });
+
+        // Reset sub-view state unless we are navigating to 'client'
+        if (pageId !== 'client' && pageId !== 'edit-client') {
+            this.currentClientId = null;
+        }
 
         switch (pageId) {
             case 'dashboard':
@@ -146,10 +170,76 @@ const app = {
         contentArea.innerHTML = Views.clientsPage(clients);
     },
 
-    viewClient: function (clientId) {
+    viewClient: function (clientId, preserveTab = false) {
         const client = dataManager.getClientById(clientId);
-        if (!client) { this.navigate('dashboard'); return; }
+        if (!client) {
+            this.currentClientId = null;
+            this.navigate('dashboard');
+            return;
+        }
+
+        this.currentClientId = clientId; // Set current
+
+        // Keep track of active tab if refreshing
+        let activeTabId = 'schedule'; // default
+        if (preserveTab) {
+            const activeTab = document.querySelector('.tab-content.active');
+            if (activeTab) activeTabId = activeTab.id;
+        }
+
+        // Reset System Page Index unless preserving system tab specifically?
+        // Let's reset to 0 to be safe, unless we implement deeper persistence.
+        if (!preserveTab || activeTabId !== 'system') {
+            this.currentSystemPageIndex = 0;
+        }
+
         contentArea.innerHTML = Views.clientDetail(client);
+
+        // Restore tab
+        if (preserveTab) {
+            const btn = document.querySelector(`.tab-btn[onclick*="'${activeTabId}'"]`);
+            if (btn) this.switchTab(activeTabId, btn);
+        }
+
+        // Trigger Progress Bar Animation safely
+        setTimeout(() => {
+            this.animateProgressBar(client);
+        }, 100);
+    },
+
+    animateProgressBar: function (client) {
+        const bar = document.getElementById('client-progress-bar');
+        if (!bar) return;
+
+        const start = parseFloat(client.startWeight) || parseFloat(client.currentWeight) || 0;
+        const current = parseFloat(client.currentWeight) || 0;
+        const target = parseFloat(client.targetWeight) || 0;
+
+        // Safety check to avoid division by zero or weirdness
+        if (start === target) return;
+
+        const totalToLose = start - target;
+        const lost = start - current;
+
+        // Logic:
+        // If aiming to lose weight (Start > Target):
+        //   Percent = (Lost / TotalToLose) * 100
+        // If aiming to gain weight (Start < Target):
+        //   TotalToGain = Target - Start
+        //   Gained = Current - Start
+        //   Percent = (Gained / TotalToGain) * 100
+
+        let pct = 0;
+        if (Math.abs(totalToLose) > 0.1) {
+            // Universal formula works for both gain/loss if signs are consistent
+            // Lost/TotalToLose works:
+            // Loss: Start 100, Target 80. Total=20. Current 90. Lost=10. 10/20 = 50%.
+            // Gain: Start 50, Target 60. Total=-10. Current 55. Lost=-5. -5/-10 = 50%.
+            pct = (lost / totalToLose) * 100;
+        }
+
+        pct = Math.min(100, Math.max(0, pct));
+        bar.style.width = pct + '%';
     },
 
     handleClientSubmit: function (e, clientId) {
@@ -160,20 +250,26 @@ const app = {
             name: formData.get('name'),
             age: formData.get('age'),
             height: formData.get('height'),
-            currentWeight: Number(formData.get('currentWeight')),
             targetWeight: formData.get('targetWeight'),
             status: formData.get('status'),
-            notes: formData.get('notes')
+            notes: formData.get('notes'),
+            startWeight: Number(formData.get('startWeight'))
         };
 
         if (clientId) {
             clientData.id = clientId;
+            // Don't update currentWeight from here for existing clients, keep their progress integrity
+            // But if we wanted to fix a "bad" currentWeight manually? User asked for it to be read-only.
+            // So we skip it.
+
             dataManager.updateClient(clientData);
             this.showToast('تم التحديث');
-            this.viewClient(clientId);
+            this.viewClient(clientId, true);
         } else {
+            // New Client
             clientData.joinDate = new Date().toISOString().split('T')[0];
-            clientData.startWeight = clientData.currentWeight;
+            clientData.currentWeight = clientData.startWeight; // Set initial current = start
+
             dataManager.addClient(clientData);
             this.showToast('تم الإضافة');
             this.navigate('dashboard');
@@ -364,6 +460,403 @@ const app = {
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         document.getElementById(tabId).classList.add('active');
         btnElement.classList.add('active');
+
+        // Handle System Tab Initialization
+        if (tabId === 'system') {
+            // Init TinyMCE
+            setTimeout(() => {
+                this.initTinyMCE();
+            }, 100);
+        }
+    },
+
+    // --- System / Editor Logic (TinyMCE) ---
+    // --- System / Editor Logic --- 
+    initTinyMCE: function () {
+        // Destroy existing instance to handle re-initialization cleanly if needed? 
+        // Or keep it alive and just swap content. 
+        // Keeping it alive is better for performance.
+        if (tinymce.get('tinymce-editor')) {
+            // If already initialized, just set content for current page
+            // But we might be re-rendering the whole DOM (tab switch in views.js resets DOM).
+            // Views.clientDetail DESTROYS the DOM elements. So TinyMCE instance is likely orphaned.
+            // We MUST remove it.
+            tinymce.get('tinymce-editor').remove();
+        }
+
+        const client = dataManager.getClientById(this.currentClientId);
+
+        // Handle migration: if systemData (old string) exists but no pages, make pages
+        let pages = client.systemPages || [];
+        if (pages.length === 0 && client.systemData) {
+            pages = [{ title: 'الصفحة الرئيسية', content: client.systemData }];
+        }
+        if (pages.length === 0) {
+            pages = [{ title: 'الصفحة 1', content: '' }];
+        }
+
+        // Validate index
+        if (this.currentSystemPageIndex >= pages.length) {
+            this.currentSystemPageIndex = 0;
+        }
+
+        // Get content, handling string vs object
+        const pageData = pages[this.currentSystemPageIndex];
+        const initialContent = (typeof pageData === 'object' && pageData.content !== undefined) ? pageData.content : (typeof pageData === 'string' ? pageData : '');
+
+        tinymce.init({
+            selector: '#tinymce-editor',
+            height: 800, // A4 height approxish
+            directionality: 'rtl',
+            language: 'ar',
+            menubar: true,
+            statusbar: false, /* Hide status bar/resize handle */
+            resize: false,    /* Disable resizing */
+            plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table code help wordcount pagebreak',
+            toolbar: 'undo redo | blocks | ' +
+                'bold italic backcolor | alignleft aligncenter ' +
+                'alignright alignjustify | bullist numlist outdent indent | ' +
+                'removeformat | pagebreak | help',
+            content_style: 'body { font-family: Cairo, sans-serif; font-size: 14pt; line-height: 1.5; direction: rtl; text-align: right; }',
+            setup: (editor) => {
+                editor.on('init', () => {
+                    editor.setContent(initialContent);
+                });
+            }
+        });
+    },
+
+    // --- Tabs Management ---
+
+    switchSystemPage: function (newIndex) {
+        // 1. Save current editor content to local client object (memory)
+        const editor = tinymce.get('tinymce-editor');
+        if (editor) {
+            const currentContent = editor.getContent();
+
+            const client = dataManager.getClientById(this.currentClientId);
+            if (!client.systemPages || client.systemPages.length === 0) {
+                // Initialize if missing
+                client.systemPages = client.systemData ? [{ title: 'الصفحة الرئيسية', content: client.systemData }] : [{ title: 'الصفحة 1', content: '' }];
+            }
+
+            // Normalize current page if string
+            let currentPage = client.systemPages[this.currentSystemPageIndex];
+            if (typeof currentPage === 'string') {
+                client.systemPages[this.currentSystemPageIndex] = { title: `صفحة ${this.currentSystemPageIndex + 1}`, content: currentContent };
+            } else {
+                currentPage.content = currentContent;
+            }
+
+            // 2. Update Index
+            this.currentSystemPageIndex = newIndex;
+
+            // 3. Update UI
+            // Update Tab Styles
+            document.querySelectorAll('.system-tab').forEach((el, idx) => {
+                if (idx === newIndex) el.classList.add('active');
+                else el.classList.remove('active');
+            });
+
+            // Update Header Title
+            const newPage = client.systemPages[newIndex];
+            const newTitle = (typeof newPage === 'object' && newPage.title) ? newPage.title : (typeof newPage === 'string' ? `صفحة ${newIndex + 1}` : '');
+            const titleEl = document.getElementById('current-page-title');
+            if (titleEl) titleEl.innerText = newTitle;
+
+            // Update Editor Content
+            // Check if target page exists (it should)
+            const nextContent = (typeof newPage === 'object' && newPage.content !== undefined) ? newPage.content : (typeof newPage === 'string' ? newPage : '');
+            editor.setContent(nextContent);
+        }
+    },
+
+    addSystemPage: function () {
+        // 1. Save current
+        const editor = tinymce.get('tinymce-editor');
+        if (editor) {
+            const currentContent = editor.getContent();
+            const client = dataManager.getClientById(this.currentClientId);
+
+            // Migration check
+            if (!client.systemPages || client.systemPages.length === 0) {
+                client.systemPages = client.systemData ? [{ title: 'الصفحة الرئيسية', content: client.systemData }] : [{ title: 'الصفحة 1', content: '' }];
+            }
+
+            // Save current
+            let currentPage = client.systemPages[this.currentSystemPageIndex];
+            if (typeof currentPage === 'string') {
+                client.systemPages[this.currentSystemPageIndex] = { title: `صفحة ${this.currentSystemPageIndex + 1}`, content: currentContent };
+            } else {
+                currentPage.content = currentContent;
+            }
+
+            // 2. Add new empty page object
+            client.systemPages.push({
+                title: `صفحة ${client.systemPages.length + 1}`,
+                content: ''
+            });
+
+            // 3. Switch to new page
+            this.currentSystemPageIndex = client.systemPages.length - 1;
+
+            // 4. Force Re-render to show new tab in DOM
+            this.viewClient(this.currentClientId, true);
+        }
+    },
+
+    renameSystemPage: function (index) {
+        const client = dataManager.getClientById(this.currentClientId);
+        const page = client.systemPages[index];
+        const currentTitle = (typeof page === 'object' && page.title) ? page.title : `صفحة ${index + 1}`;
+
+        this.openCustomInput('تغيير اسم الصفحة', 'اسم الصفحة الجديد:', currentTitle, (newName) => {
+            if (newName && newName.trim()) {
+                if (typeof page === 'string') {
+                    client.systemPages[index] = { title: newName.trim(), content: page };
+                } else {
+                    page.title = newName.trim();
+                }
+
+                // Save to DB immediately or just update UI?
+                // Let's just update UI and wait for manual Save, OR auto-save structure.
+                // Better to update memory and re-render.
+                this.viewClient(this.currentClientId, true);
+            }
+        });
+    },
+
+    deleteSystemPage: function (index) {
+        this.confirmAction('هل أنت متأكد من حذف هذه الصفحة؟', () => {
+            const client = dataManager.getClientById(this.currentClientId);
+            if (!client.systemPages) return;
+
+            // Remove page
+            client.systemPages.splice(index, 1);
+
+            // If empty, add one back
+            if (client.systemPages.length === 0) {
+                client.systemPages.push({ title: 'الصفحة 1', content: '' });
+            }
+
+            // Adjust index
+            if (this.currentSystemPageIndex >= client.systemPages.length) {
+                this.currentSystemPageIndex = client.systemPages.length - 1;
+            }
+
+            // Re-render
+            this.viewClient(this.currentClientId, true);
+        });
+    },
+
+    saveSystemData: function (clientId) {
+        if (!tinymce.get('tinymce-editor')) return;
+
+        // Save current page content first
+        const currentContent = tinymce.get('tinymce-editor').getContent();
+        const client = dataManager.getClientById(clientId);
+
+        // Ensure migration
+        if (!client.systemPages || client.systemPages.length === 0) {
+            client.systemPages = client.systemData ? [{ title: 'الصفحة الرئيسية', content: client.systemData }] : [{ title: 'الصفحة 1', content: '' }];
+        }
+
+        let currentPage = client.systemPages[this.currentSystemPageIndex];
+        if (typeof currentPage === 'string') {
+            client.systemPages[this.currentSystemPageIndex] = { title: `صفحة ${this.currentSystemPageIndex + 1}`, content: currentContent };
+        } else {
+            currentPage.content = currentContent;
+        }
+
+        // Save to Firebase
+        dataManager.updateClient({
+            id: clientId,
+            systemPages: client.systemPages,
+            // Fallback string
+            systemData: client.systemPages.map(p => (typeof p === 'object' ? p.content : p)).join('<br><hr><br>')
+        });
+        this.showToast('تم حفظ النظام بنجاح');
+    },
+
+    insertPageBreak: function () {
+        if (!tinymce.get('tinymce-editor')) return;
+        tinymce.get('tinymce-editor').insertContent('<div style="page-break-after: always; border-top: 1px dashed #ccc; margin: 20px 0;"></div>');
+    },
+
+    exportSystemPDF: function (clientName) {
+        // We need to gather content from ALL PAGES, not just the editor.
+        // We assume the user clicked Save, OR we grab current state from memory + current editor.
+
+        const editor = tinymce.get('tinymce-editor');
+        const client = dataManager.getClientById(this.currentClientId);
+
+        // Ensure migration in memory
+        if (!client.systemPages || client.systemPages.length === 0) {
+            client.systemPages = client.systemData ? [{ title: 'الصفحة الرئيسية', content: client.systemData }] : [{ title: 'الصفحة 1', content: '' }];
+        }
+
+        // Clone to avoid mutation
+        let pagesToExport = JSON.parse(JSON.stringify(client.systemPages));
+
+        // Update the CURRENT page in this list with what's currently in the editor
+        if (editor) {
+            const currentContent = editor.getContent();
+            let currentPage = pagesToExport[this.currentSystemPageIndex];
+            if (typeof currentPage === 'string') {
+                pagesToExport[this.currentSystemPageIndex] = { title: `صفحة ${this.currentSystemPageIndex + 1}`, content: currentContent };
+            } else {
+                currentPage.content = currentContent;
+            }
+        }
+
+        // Generate stacked HTML for all pages
+
+        const logoUrl = 'img/company_logo.png';
+
+        // Helper to generate one A4 page HTML
+        const generatePageHtml = (page) => {
+            // Extract content and title
+            const content = (typeof page === 'object' && page.content !== undefined) ? page.content : (typeof page === 'string' ? page : '');
+            const title = (typeof page === 'object' && page.title) ? page.title : '';
+
+            return `
+                <div class="a4-page">
+                    <div class="watermark-overlay"></div>
+                    <div class="a4-header">
+                        <img src="${logoUrl}" class="header-logo" alt="Logo">
+                        
+                         <!-- Centered Title -->
+                        <div class="header-page-title">${title}</div>
+                        
+                        <!-- QR Code -->
+                        <img src="img/qr_code.png" class="header-qr" alt="Instagram">
+                    </div>
+                    <div class="content-wrapper">
+                        <div class="content-body">
+                            ${content}
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        const allPagesHtml = pagesToExport.map(p => generatePageHtml(p)).join('');
+
+        const printWindow = window.open('', '_blank', 'width=900,height=1000');
+
+        const fullHtml = `
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head>
+                <title>System_${clientName}</title>
+                <style>
+                    body { margin: 0; background: #ccc; display: flex; flex-direction: column; align-items: center; font-family: 'Cairo', sans-serif; gap: 20px; padding: 20px;}
+                    
+                    @page { margin: 0; size: A4 portrait; }
+                    
+                    .a4-page {
+                        width: 210mm;
+                        min-height: 297mm;
+                        background: white; 
+                        position: relative;
+                        padding: 0;
+                        display: flex;
+                        flex-direction: column;
+                        margin: 0; /* Margin handled by body gap in view, print resets it */
+                    }
+                    .watermark-overlay {
+                        position: absolute;
+                        top: 50%; left: 50%;
+                        transform: translate(-50%, -50%);
+                        width: 60%; height: 60%;
+                        background-image: url('${logoUrl}');
+                        background-repeat: no-repeat;
+                        background-position: center;
+                        background-size: contain;
+                        opacity: 0.08;
+                        z-index: 0;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                        pointer-events: none;
+                    }
+                    .a4-header {
+                        padding: 1.5cm 2cm 0.5cm 2cm;
+                        display: flex; justify-content: space-between; align-items: center;
+                        /* border-bottom removed */
+                        background: white;
+                        z-index: 1;
+                        position: relative;
+                    }
+                    .header-page-title {
+                        position: absolute;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        font-size: 24px;
+                        font-weight: 700;
+                        color: #166534; /* Green matching theme or primary */
+                        text-align: center;
+                        max-width: 40%;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        top: auto;
+                        bottom: 10px; 
+                    }
+
+                    .header-logo { height: 140px; width: auto; }
+                    .header-qr { width: 100px; height: 100px; border-radius: 12px; border: 1px solid #eee; }
+                    
+                    .content-wrapper { padding: 1cm 2cm; flex-grow: 1; position: relative; z-index: 1;}
+                    .content-body { direction: rtl; text-align: right; font-family: 'Cairo', sans-serif; font-size: 14pt; line-height: 1.6; }
+
+                    /* Footer Removed */
+                    .a4-footer { display: none; }
+
+                    @media print {
+                        html, body { 
+                            height: auto !important; 
+                            margin: 0 !important; 
+                            padding: 0 !important; 
+                            overflow: hidden !important; 
+                            background: white; 
+                            display: block; 
+                        }
+                        
+                        .a4-page { 
+                            box-shadow: none; 
+                            margin: 0; 
+                            padding: 0;
+                            width: 100%; 
+                            height: auto; 
+                            min-height: 297mm;
+                            border: none;
+                            page-break-after: always; 
+                            page-break-inside: avoid;
+                            position: relative;
+                            overflow: hidden; /* Cut off spills */
+                        }
+                        .a4-page:last-child {
+                             page-break-after: avoid !important;
+                             margin-bottom: 0 !important;
+                        }
+                        .watermark-overlay { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    }
+                </style>
+                <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+            </head>
+            <body>
+                ${allPagesHtml}
+                <script>
+                    window.onload = function() {
+                        setTimeout(() => { window.print(); }, 500);
+                    }
+                </script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(fullHtml);
+        printWindow.document.close();
     },
 
     showToast: function (msg) {

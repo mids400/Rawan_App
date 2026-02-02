@@ -33,27 +33,45 @@ const Views = {
             </div>
         </header>
 
-        <div class="dashboard-stats-grid">
-            <div class="stat-card">
-                <div class="icon-box"><i class="ph ph-users"></i></div>
-                <div class="info">
-                    <h3>المشتركين</h3>
-                    <p class="number">${clients.length}</p>
+        <div class="hero-stats-grid">
+            <!-- Hero Card 1: Clients -->
+            <div class="hero-card">
+                <i class="ph ph-users-three bg-icon"></i>
+                <div class="hero-card-header">
+                    <div class="hero-icon"><i class="ph ph-users"></i></div>
+                    <div class="progress-ring" style="--percent: ${clients.length > 0 ? (clients.filter(c => c.status === 'active').length / clients.length) * 100 : 0}%">
+                        <span class="progress-ring-text">${clients.length}</span>
+                    </div>
                 </div>
+                <div class="hero-value">${clients.length}</div>
+                <div class="hero-label">إجمالي المشتركين</div>
             </div>
-            <div class="stat-card">
-                <div class="icon-box"><i class="ph ph-trend-down"></i></div>
-                <div class="info">
-                    <h3>الوزن المفقود</h3>
-                    <p class="number">--</p>
+
+            <!-- Hero Card 2: Total Weight Lost -->
+            <div class="hero-card">
+                <i class="ph ph-trend-down bg-icon"></i>
+                <div class="hero-card-header">
+                    <div class="hero-icon"><i class="ph ph-fire"></i></div>
                 </div>
+                <div class="hero-value">
+                ${clients.reduce((acc, c) => {
+        const start = parseFloat(c.startWeight) || 0;
+        const curr = parseFloat(c.currentWeight) || 0;
+        return acc + (start > curr ? (start - curr) : 0);
+    }, 0).toFixed(1)} <span style="font-size:16px; color:#6b7280;">كجم</span>
+                </div>
+                <div class="hero-label">مجموع الوزن المفقود</div>
             </div>
-            <div class="stat-card">
-                <div class="icon-box"><i class="ph ph-activity"></i></div>
-                <div class="info">
-                    <h3>نشطين</h3>
-                    <p class="number">${clients.filter(c => c.status === 'active').length}</p>
+
+            <!-- Hero Card 3: Active Status -->
+            <div class="hero-card">
+                 <i class="ph ph-lightning bg-icon"></i>
+                <div class="hero-card-header">
+                    <div class="hero-icon"><i class="ph ph-activity"></i></div>
+                    <span style="font-size:18px; font-weight:800; color:var(--primary-600);">${clients.length > 0 ? Math.round((clients.filter(c => c.status === 'active').length / clients.length) * 100) : 0}%</span>
                 </div>
+                <div class="hero-value">${clients.filter(c => c.status === 'active').length}</div>
+                <div class="hero-label">مشتركين نشطين</div>
             </div>
         </div>
 
@@ -126,8 +144,14 @@ const Views = {
                         <input type="number" name="height" class="form-control" value="${client ? client.height : ''}">
                     </div>
                     <div class="form-group">
+                        <label>الوزن الابتدائي (كجم)</label>
+                        <input type="number" name="startWeight" class="form-control" required value="${client ? (client.startWeight || client.currentWeight) : ''}" placeholder="الوزن عند التسجيل">
+                    </div>
+                    
+                    <div class="form-group">
                         <label>الوزن الحالي (كجم)</label>
-                        <input type="number" name="currentWeight" class="form-control" required value="${client ? client.currentWeight : ''}">
+                        <input type="number" name="currentWeight" class="form-control" readonly style="background-color: #f3f4f6; color:#6b7280; cursor:not-allowed;" value="${client ? client.currentWeight : '0'}" title="يتم تحديث الوزن الحالي من خلال سجل المتابعة">
+                        <small style="color:gray; font-size:10px;">يتم التحديث تلقائياً من سجل المتابعة أو يساوي الوزن الابتدائي عند الإضافة</small>
                     </div>
                     <div class="form-group">
                         <label>الوزن المستهدف (كجم)</label>
@@ -174,13 +198,97 @@ const Views = {
             </div>
         </header>
 
+        <div class="goal-tracker-card">
+            <div class="goal-header">
+                <div>
+                     ${(() => {
+            const start = parseFloat(client.startWeight) || 0;
+            const current = parseFloat(client.currentWeight) || 0;
+            const target = parseFloat(client.targetWeight) || 0;
+
+            const isGain = target > start;
+            // const remaining = Math.abs(target - current);
+
+            // Check reached
+            const reached = isGain ? (current >= target) : (current <= target);
+
+            let msg = "🚀 بداية موفقة، الرحلة بدأت للتو!";
+            if (reached) msg = "🎉 مبروك! لقد وصل هذا المشترك إلى هدفه!";
+            // Simple progress check
+            const progress = Math.abs(current - start);
+            if (!reached && progress > 2) msg = "💪 تقدم ممتاز، استمر في العمل الرائع!";
+
+            return `
+                        <h3>متتبع الهدف ${isGain ? '(زيادة وزن)' : '(خسارة وزن)'}</h3>
+                        <div class="goal-message">${msg}</div>
+                        `;
+        })()}
+                </div>
+                <div style="text-align:left;">
+                    <span style="font-size:14px; opacity:0.7;">باقي للهدف</span>
+                    <div style="font-size:24px; font-weight:800;">
+                        ${Math.abs(parseFloat(client.currentWeight || 0) - parseFloat(client.targetWeight || 0)).toFixed(1)} <span style="font-size:14px;">كجم</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="goal-progress-container">
+                <div class="goal-progress-bar" style="width: 0%" id="client-progress-bar"></div>
+            </div>
+            
+            <div class="goal-stats">
+                 <div class="goal-stat-item">
+                    <h4>البداية</h4>
+                    <p>${client.startWeight || '--'}</p>
+                 </div>
+                 <div class="goal-stat-item">
+                    <h4>الحالي</h4>
+                    <p>${client.currentWeight || '--'}</p>
+                 </div>
+                 <div class="goal-stat-item">
+                    <h4>الهدف</h4>
+                    <p>${client.targetWeight || '--'}</p>
+                 </div>
+                 <div class="goal-stat-item" style="margin-right:auto;">
+                    <h4>${(parseFloat(client.targetWeight) > parseFloat(client.startWeight)) ? 'زيادة' : 'تغيير'}</h4>
+                    <p style="color:#4ade80; direction:ltr;">${(parseFloat(client.currentWeight || 0) - parseFloat(client.startWeight || 0)).toFixed(1)}</p>
+                 </div>
+            </div>
+            
+            <!-- Trigger animation after render -->
+            <img src="" onerror="
+                setTimeout(() => {
+                    const start = ${parseFloat(client.startWeight) || 0};
+                    const current = ${parseFloat(client.currentWeight) || 0};
+                    const target = ${parseFloat(client.targetWeight) || 0};
+                    
+                    const totalDist = Math.abs(target - start);
+                    const progressDist = Math.abs(current - start);
+                    
+                    let pct = 0;
+                    if(totalDist > 0) {
+                        const isGain = target > start;
+                        // Only count progress if moving in right direction
+                        const movingRightWay = isGain ? (current >= start) : (current <= start);
+                        
+                        if(movingRightWay) {
+                            pct = (progressDist / totalDist) * 100;
+                        }
+                    }
+                    if(start == target) pct = 100; // Edge case
+                    
+                    const bar = document.getElementById('client-progress-bar');
+                    if(bar) bar.style.width = Math.min(100, Math.max(0, pct)) + '%';
+                }, 100);
+                this.style.display='none';
+            ">
+        </div>
+
         <div class="client-header">
             <div class="client-info-group">
                 <div class="info-item"><h4>العمر</h4><p>${client.age || '--'} <span style="font-size:14px; font-weight:400; color:gray">سنة</span></p></div>
                 <div class="info-item"><h4>الطول</h4><p>${client.height || '--'} <span style="font-size:14px; font-weight:400; color:gray">سم</span></p></div>
-                <div class="info-item"><h4>الوزن الابتدائي</h4><p>${client.startWeight || '--'} <span style="font-size:14px; font-weight:400; color:gray">كجم</span></p></div>
-                <div class="info-item"><h4>الوزن الحالي</h4><p style="color: var(--primary-600);">${client.currentWeight} <span style="font-size:14px; font-weight:400; color:gray">كجم</span></p></div>
-                 <div class="info-item"><h4>الهدف</h4><p>${client.targetWeight || '--'} <span style="font-size:14px; font-weight:400; color:gray">كجم</span></p></div>
+                 <!-- Removed weights from here since they are in the tracker now, keeping Age/Height -->
             </div>
         </div>
 
@@ -188,6 +296,7 @@ const Views = {
             <button class="tab-btn active" onclick="app.switchTab('schedule', this)">الجدول الاسبوعي</button>
             <button class="tab-btn" onclick="app.switchTab('progress', this)">سجل المتابعة</button>
             <button class="tab-btn" onclick="app.switchTab('photos', this)">الصور</button>
+            <button class="tab-btn" onclick="app.switchTab('system', this)">نظام المشترك</button>
         </div>
 
         <!-- Tab: Editable Schedule (Split Layout: Fixed Legend + Compact Scrollable Days) -->
@@ -345,6 +454,90 @@ const Views = {
                         <p>لا توجد صور. قم بإضافة تحديث جديد مع صورة لتظهر هنا.</p>
                     </div>`}
                 </div>
+            </div>
+        </div>
+
+        <!-- Tab: System (Word-like Editor) -->
+        <div id="system" class="tab-content">
+            <div class="section-header">
+                    <h3>نظام المشترك</h3>
+                    <div style="display:flex; gap:10px;">
+                    <button class="btn-sm" onclick="app.insertPageBreak()" title="إدراج فاصل للانتقال لصفحة جديدة في الـ PDF">
+                        <i class="ph ph-files"></i> فاصل
+                    </button>
+                    <button class="btn-sm" onclick="app.exportSystemPDF('${client.name}')">
+                        <i class="ph ph-file-pdf"></i> تصدير PDF
+                    </button>
+                    <button class="btn-primary" onclick="app.saveSystemData('${client.id}')">
+                        <i class="ph ph-floppy-disk"></i> حفظ النظام
+                    </button>
+                    </div>
+            </div>
+            
+            <div class="editor-wrapper-a4">
+                 <!-- Tabs Container -->
+                 <div class="system-tabs-container">
+                    ${(() => {
+            const pages = (client.systemPages && client.systemPages.length > 0) ? client.systemPages : [''];
+            // Render tabs. 
+            // Note: active class will be handled by app.js re-render or we assume index 0 is active on first load? 
+            // Better: We might need app.currentSystemPageIndex state.
+            // "client" object here is from dataManager. It doesn't have "UI state" like currentPageIndex.
+            // We will let app.js handle the "active" class logic after render, OR:
+            // We can rely on a global or app property. 
+            // Let's assume app.currentSystemPageIndex exists, default 0.
+            const activeIdx = app.currentSystemPageIndex || 0;
+
+            let tabsHtml = '';
+
+            pages.forEach((page, i) => {
+                // Handle Migration: Page might be string or object
+                const pageTitle = (typeof page === 'object' && page.title) ? page.title : `صفحة ${i + 1}`;
+
+                // 1-based index for display
+                tabsHtml += `<div class="system-tab ${i === activeIdx ? 'active' : ''}" onclick="app.switchSystemPage(${i})" ondblclick="app.renameSystemPage(${i})">
+                                <span class="tab-title">${pageTitle}</span>
+                                ${pages.length > 1 ? `<span class="close-tab" onclick="event.stopPropagation(); app.deleteSystemPage(${i})">&times;</span>` : ''}
+                             </div>`;
+            });
+
+            // Add Button at the end (Left in RTL)
+            tabsHtml += `<button class="add-page-btn" onclick="app.addSystemPage()" title="إضافة صفحة">+</button>`;
+
+            return tabsHtml;
+        })()}
+                 </div>
+
+                 <!-- A4 Paper Visual -->
+                 <div class="a4-page">
+                      <!-- Watermark -->
+                      <div class="watermark-overlay"></div>
+                      
+                      <!-- Header -->
+                      <div class="a4-header">
+                            <img src="img/company_logo.png" class="header-logo" alt="Logo">
+                            
+                            <!-- Custom Page Title (Center) -->
+                            <div class="header-page-title" id="current-page-title">
+                                ${(() => {
+            const pages = client.systemPages || [];
+            const activeIdx = app.currentSystemPageIndex || 0;
+            const page = pages[activeIdx];
+            return (typeof page === 'object' && page.title) ? page.title : `صفحة ${activeIdx + 1}`;
+        })()}
+                            </div>
+
+                            <!-- QR Code replaces text -->
+                            <img src="img/qr_code.png" class="header-qr" alt="Instagram">
+                      </div>
+
+                      <!-- Content (TinyMCE) -->
+                      <div class="editor-wrapper-inner">
+                        <textarea id="tinymce-editor"></textarea>
+                      </div>
+
+                      <!-- Footer Removed -->
+                 </div>
             </div>
         </div>
     `,
