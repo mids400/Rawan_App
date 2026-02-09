@@ -10,6 +10,36 @@ const app = {
 
     // System Tabs State
     currentSystemPageIndex: 0,
+    currentZoom: 1, // Default Zoom Level
+
+    adjustZoom: function (delta) {
+        let newZoom = this.currentZoom + delta;
+        // Clamp between 0.4 and 2.0
+        newZoom = Math.min(Math.max(newZoom, 0.4), 2.0);
+        this.setZoom(newZoom);
+    },
+
+    resetZoom: function () {
+        this.setZoom(1);
+    },
+
+    setZoom: function (zoomLevel) {
+        this.currentZoom = zoomLevel;
+        // Update UI Text
+        const indicator = document.getElementById('zoom-level-indicator');
+        if (indicator) indicator.innerText = Math.round(zoomLevel * 100) + '%';
+
+        // Apply Scale to Wrapper
+        const container = document.querySelector('.scalable-content');
+        if (container) {
+            container.style.transform = `scale(${zoomLevel})`;
+            // transform-origin is already set in CSS/HTML style, but good to reinforce if needed.
+            // It was set inline in views.js: style="transform-origin:top center;"
+
+            // Adjust margin to prevent overlap if scaled up? 
+            // Or just let it flow. The wrapper is flex column.
+        }
+    },
 
     init: function () {
         this.loadTheme();
@@ -27,21 +57,21 @@ const app = {
             // SECURITY CHECK: Do not render content if not logged in
             if (!this.isAuthenticated) return;
 
+            // CRITICAL: Preserve Client View if active
+            // This prevents redirecting to Dashboard when auto-pagination updates the client data
+            if (this.currentClientId) {
+                // If we are currently editing a client, stay there and refresh data
+                // preserveTab = true (2nd arg)
+                this.viewClient(this.currentClientId, true);
+                return;
+            }
+
             // Only re-render if we are on a page that needs it
             const activePage = document.querySelector('.nav-link.active')?.dataset.view || 'dashboard';
 
             // Smart Re-render
             if (activePage === 'dashboard') this.renderDashboard();
-            if (activePage === 'clients') {
-                // Check if we are viewing a specific client details.
-                // If this.currentClientId is set, we prefer to re-render the CLIENT DETAIL view
-                // instead of the list.
-                if (this.currentClientId) {
-                    this.viewClient(this.currentClientId, true); // true = preserve tab?
-                } else {
-                    this.renderClientsPage();
-                }
-            }
+            if (activePage === 'clients') this.renderClientsPage();
         });
 
         // Mobile Sidebar Toggle Listener
@@ -188,6 +218,7 @@ const app = {
 
     viewClient: function (clientId, preserveTab = false) {
         const client = dataManager.getClientById(clientId);
+        console.log("ViewClient:", clientId, "Pages:", client ? (client.systemPages || []).length : 'N/A');
         if (!client) {
             this.currentClientId = null;
             this.navigate('dashboard');
@@ -523,27 +554,183 @@ const app = {
 
         tinymce.init({
             selector: '#tinymce-editor',
-            height: 800, // A4 height approxish
-            directionality: 'rtl',
+            height: '1125px', // Exact A4 Height
             language: 'ar',
             menubar: true,
             statusbar: false, /* Hide status bar/resize handle */
             resize: false,    /* Disable resizing */
-            plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table code help wordcount pagebreak',
+            plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table code help wordcount pagebreak quickbars',
             toolbar: 'undo redo | blocks | ' +
                 'bold italic backcolor | alignleft aligncenter ' +
                 'alignright alignjustify | bullist numlist outdent indent | ' +
-                'removeformat | pagebreak | help',
-            content_style: 'body { font-family: Cairo, sans-serif; font-size: 14pt; line-height: 1.5; direction: rtl; text-align: right; }',
+                'image | removeformat | pagebreak | help',
+
+            quickbars_insert_toolbar: false,
+            quickbars_selection_toolbar: 'bold italic | quicklink h2 h3 blockquote',
+            quickbars_image_toolbar: 'alignleft aligncenter alignright | rotateleft rotateright | imageoptions',
+            contextmenu: 'link image table',
+            image_advtab: true,
+            /* Enable Local Image Upload */
+            image_title: true,
+
+            image_class_list: [
+                { title: 'افتراضي (ضمن النص)', value: 'img-inline' },
+                { title: 'مربع - يمين', value: 'img-wrap-right' },
+                { title: 'مربع - يسار', value: 'img-wrap-left' },
+                { title: 'توسط (أعلى/أسفل)', value: 'img-center' },
+                { title: 'حر (متقدم)', value: 'img-absolute' },
+                { title: 'أمام النص', value: 'img-front' },
+                { title: 'خلف النص (شفاف)', value: 'img-behind' }
+            ],
+
+            automatic_uploads: true,
+            file_picker_types: 'image',
+            file_picker_callback: (cb, value, meta) => {
+                const input = document.createElement('input');
+                input.setAttribute('type', 'file');
+                input.setAttribute('accept', 'image/*');
+
+                input.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = function () {
+                        // Note: In a real app we'd upload to server. Here we use Base64.
+                        // TinyMCE Blob Cache approach for better performance while editing
+                        const id = 'blobid' + (new Date()).getTime();
+                        const blobCache = tinymce.activeEditor.editorUpload.blobCache;
+                        const base64 = reader.result.split(',')[1];
+                        const blobInfo = blobCache.create(id, file, base64);
+                        blobCache.add(blobInfo);
+
+                        // Call the callback and populate the Title field with the file name
+                        cb(blobInfo.blobUri(), { title: file.name });
+                    };
+                    reader.readAsDataURL(file);
+                });
+
+                input.click();
+            },
+
+            content_style: `
+                body { font-family: Cairo, sans-serif; font-size: 14pt; line-height: 1.5; margin: 1cm; overflow-x: hidden; }
+                /* Auto Direction */
+                
+                .img-inline { display: inline-block; vertical-align: middle; }
+                .img-wrap-right { float: right; margin: 10px 0 10px 20px; clear: right; }
+                .img-wrap-left { float: left; margin: 10px 20px 10px 0; clear: left; }
+                .img-center { display: block; margin-left: auto; margin-right: auto; clear: both; }
+                .img-absolute { position: absolute !important; z-index: 10; }
+                .img-front { position: absolute !important; z-index: 20; }
+                .img-behind { position: absolute !important; z-index: -1; opacity: 0.6; }
+                
+                /* Visual Page Break gap */
+                .mce-pagebreak { display: block; width: 100%; border: 0; height: 10px; background: #e5e7eb; border-top: 1px dashed #9ca3af; border-bottom: 1px dashed #9ca3af; margin: 20px 0; }
+            `,
             setup: (editor) => {
                 editor.on('init', () => {
                     editor.setContent(initialContent);
+                    editor.getBody().setAttribute('dir', 'auto');
+
+                    // Auto-Focus Logic for Pagination
+                    if (app.autoFocusNewPage) {
+                        try {
+                            editor.focus();
+                            // Place cursor at very start
+                            editor.selection.setCursorLocation(editor.getBody(), 0);
+                        } catch (e) { console.log('Focus error', e); }
+                        app.autoFocusNewPage = false;
+                    }
+                });
+                editor.on('KeyUp NodeChange', () => {
+                    app.checkForPageOverflow(editor);
                 });
             }
         });
     },
 
     // --- Tabs Management ---
+
+    checkForPageOverflow: function (editor) {
+        if (!editor || !editor.getBody()) return;
+        if (app.isSplitting) return; // Debounce
+
+        const body = editor.getBody();
+        const lastNode = body.lastElementChild || body.lastChild;
+        if (!lastNode) return;
+
+        // More robust detection relative to document top
+        const contentBottom = lastNode.offsetTop + lastNode.offsetHeight;
+
+        // Strict A4 content limit (1125px total - ~80px margins = ~1045px usable)
+        // Trigger BEFORE visual overflow to ensure smooth split
+        const MAX_HEIGHT = 960;
+
+        if (contentBottom > MAX_HEIGHT) {
+            console.log("Splitting page at contentBottom:", contentBottom);
+            app.isSplitting = true;
+
+            // Check if last node is just an empty placeholder or break
+            const isEmptyLine = lastNode.nodeName === 'P' && (lastNode.innerHTML === '<br>' || lastNode.innerHTML === '<br data-mce-bogus="1">');
+
+            // Capture overflowing content
+            // If empty line, ensure strictly empty paragraph to avoid ghost text issues, but allow split
+            let overflowHtml = (lastNode.outerHTML || lastNode.textContent);
+            if (isEmptyLine) overflowHtml = '<p><br data-mce-bogus="1"></p>';
+
+            // Remove from current DOM safely
+            if (lastNode.parentNode) {
+                lastNode.parentNode.removeChild(lastNode);
+            }
+
+            // Save modified current page content
+            const currentContent = editor.getContent();
+            const client = dataManager.getClientById(this.currentClientId);
+
+            // Ensure data structure
+            if (!client.systemPages) client.systemPages = [];
+
+            // Update Current Page Object
+            if (client.systemPages[this.currentSystemPageIndex]) {
+                const page = client.systemPages[this.currentSystemPageIndex];
+                if (typeof page === 'object') page.content = currentContent;
+                else client.systemPages[this.currentSystemPageIndex] = { title: `صفحة ${this.currentSystemPageIndex + 1}`, content: currentContent };
+            }
+
+            // Prepare Next Page
+            const nextIndex = this.currentSystemPageIndex + 1;
+
+            if (!client.systemPages[nextIndex]) {
+                client.systemPages.push({ title: `صفحة ${nextIndex + 1}`, content: '' });
+            }
+
+            let nextPage = client.systemPages[nextIndex];
+            if (typeof nextPage === 'string') {
+                nextPage = { title: `صفحة ${nextIndex + 1}`, content: nextPage };
+                client.systemPages[nextIndex] = nextPage;
+            }
+
+            // Prepend overflow content to the next page
+            const existingContent = nextPage.content || '';
+            nextPage.content = overflowHtml + existingContent;
+
+            // Persist Changes (Important: Update DB to sync state)
+            dataManager.updateClient({
+                id: client.id,
+                systemPages: client.systemPages
+            });
+
+            // Move to next page
+            this.currentSystemPageIndex = nextIndex;
+            app.autoFocusNewPage = true;
+
+            // Re-render UI
+            this.viewClient(this.currentClientId, true);
+
+            setTimeout(() => { app.isSplitting = false; }, 1000);
+        }
+    },
 
     switchSystemPage: function (newIndex) {
         // 1. Save current editor content to local client object (memory)
@@ -640,6 +827,29 @@ const app = {
                 // Better to update memory and re-render.
                 this.viewClient(this.currentClientId, true);
             }
+        });
+    },
+
+    resetSystemPages: function () {
+        this.confirmAction('تحذير: هل أنت متأكد من حذف جميع الصفحات والبدء من جديد؟ سيتم فقدان كل المحتوى.', () => {
+            const client = dataManager.getClientById(this.currentClientId);
+            if (!client) return;
+
+            // Reset to single empty page
+            client.systemPages = [{ title: 'الصفحة 1', content: '' }];
+
+            // Save to DB
+            dataManager.updateClient({
+                id: client.id,
+                systemPages: client.systemPages
+            });
+
+            // Reset Index
+            this.currentSystemPageIndex = 0;
+
+            // Re-render
+            this.viewClient(this.currentClientId, true);
+            this.showToast('تم تصفير الصفحات بنجاح');
         });
     },
 
@@ -767,19 +977,21 @@ const app = {
             <head>
                 <title>System_${clientName}</title>
                 <style>
-                    body { margin: 0; background: #ccc; display: flex; flex-direction: column; align-items: center; font-family: 'Cairo', sans-serif; gap: 20px; padding: 20px;}
+                    body { margin: 0; background: #ccc; display: flex; flex-direction: column; align-items: center; font-family: 'Cairo', sans-serif; padding: 20px; gap: 20px; }
                     
                     @page { margin: 0; size: A4 portrait; }
                     
                     .a4-page {
                         width: 210mm;
-                        min-height: 297mm;
+                        /* Safety margin: 296mm avoids browser rounding errors pushing to next page */
+                        height: 296mm;
                         background: white; 
                         position: relative;
                         padding: 0;
                         display: flex;
                         flex-direction: column;
-                        margin: 0; /* Margin handled by body gap in view, print resets it */
+                        margin-bottom: 20px; /* Preview gap */
+                        overflow: hidden;
                     }
                     .watermark-overlay {
                         position: absolute;
@@ -834,26 +1046,27 @@ const app = {
                             height: auto !important; 
                             margin: 0 !important; 
                             padding: 0 !important; 
-                            overflow: hidden !important; 
+                            overflow: visible !important; 
                             background: white; 
-                            display: block; 
+                            display: block !important; 
                         }
                         
                         .a4-page { 
                             box-shadow: none; 
-                            margin: 0; 
-                            padding: 0;
+                            margin: 0 !important; 
+                            padding: 0 !important;
                             width: 100%; 
-                            height: auto; 
-                            min-height: 297mm;
+                            /* Force strict constraint to avoid spillover */
+                            height: 296mm !important; 
                             border: none;
                             page-break-after: always; 
                             page-break-inside: avoid;
                             position: relative;
-                            overflow: hidden; /* Cut off spills */
+                            overflow: hidden !important;
+                            margin-bottom: 0 !important;
                         }
                         .a4-page:last-child {
-                             page-break-after: avoid !important;
+                             page-break-after: auto !important;
                              margin-bottom: 0 !important;
                         }
                         .watermark-overlay { -webkit-print-color-adjust: exact; print-color-adjust: exact; }

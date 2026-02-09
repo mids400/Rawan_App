@@ -462,8 +462,8 @@ const Views = {
             <div class="section-header">
                     <h3>نظام المشترك</h3>
                     <div style="display:flex; gap:10px;">
-                    <button class="btn-sm" onclick="app.insertPageBreak()" title="إدراج فاصل للانتقال لصفحة جديدة في الـ PDF">
-                        <i class="ph ph-files"></i> فاصل
+                    <button class="btn-sm" style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca;" onclick="app.resetSystemPages()" title="حذف جميع الصفحات والبدء من جديد">
+                        <i class="ph ph-trash"></i> تصفير
                     </button>
                     <button class="btn-sm" onclick="app.exportSystemPDF('${client.name}')">
                         <i class="ph ph-file-pdf"></i> تصدير PDF
@@ -475,17 +475,21 @@ const Views = {
             </div>
             
             <div class="editor-wrapper-a4">
-                 <!-- Tabs Container -->
-                 <div class="system-tabs-container">
-                    ${(() => {
+                 <!-- Zoom Controls -->
+                 <div class="zoom-toolbar" style="width:100%; display:flex; justify-content:center; align-items:center; gap:10px; margin-bottom:15px; direction:ltr;">
+                    <button class="btn-sm" onclick="app.adjustZoom(-0.1)" title="تصغير" style="background:white;"><i class="ph ph-minus"></i></button>
+                    <span id="zoom-level-indicator" style="font-variant-numeric: tabular-nums; font-weight:bold; color:var(--color-gray-600); min-width:45px; text-align:center;">100%</span>
+                    <button class="btn-sm" onclick="app.adjustZoom(0.1)" title="تكبير" style="background:white;"><i class="ph ph-plus"></i></button>
+                    <div style="width:1px; height:20px; background:#e5e7eb; margin:0 5px;"></div>
+                    <button class="btn-sm" onclick="app.resetZoom()" title="fit" style="background:white; font-size:12px;">Fit</button>
+                 </div>
+
+                 <div class="scalable-content" style="transform-origin:top center; transition:transform 0.2s; display:flex; flex-direction:column; align-items:center;">
+                     <!-- Tabs Container -->
+                     <div class="system-tabs-container">
+                        ${(() => {
             const pages = (client.systemPages && client.systemPages.length > 0) ? client.systemPages : [''];
             // Render tabs. 
-            // Note: active class will be handled by app.js re-render or we assume index 0 is active on first load? 
-            // Better: We might need app.currentSystemPageIndex state.
-            // "client" object here is from dataManager. It doesn't have "UI state" like currentPageIndex.
-            // We will let app.js handle the "active" class logic after render, OR:
-            // We can rely on a global or app property. 
-            // Let's assume app.currentSystemPageIndex exists, default 0.
             const activeIdx = app.currentSystemPageIndex || 0;
 
             let tabsHtml = '';
@@ -496,9 +500,9 @@ const Views = {
 
                 // 1-based index for display
                 tabsHtml += `<div class="system-tab ${i === activeIdx ? 'active' : ''}" onclick="app.switchSystemPage(${i})" ondblclick="app.renameSystemPage(${i})">
-                                <span class="tab-title">${pageTitle}</span>
-                                ${pages.length > 1 ? `<span class="close-tab" onclick="event.stopPropagation(); app.deleteSystemPage(${i})">&times;</span>` : ''}
-                             </div>`;
+                                    <span class="tab-title">${pageTitle}</span>
+                                    ${pages.length > 1 ? `<span class="close-tab" onclick="event.stopPropagation(); app.deleteSystemPage(${i})">&times;</span>` : ''}
+                                 </div>`;
             });
 
             // Add Button at the end (Left in RTL)
@@ -506,37 +510,36 @@ const Views = {
 
             return tabsHtml;
         })()}
-                 </div>
+                     </div>
 
-                 <!-- A4 Paper Visual -->
-                 <div class="a4-page">
-                      <!-- Watermark -->
-                      <div class="watermark-overlay"></div>
-                      
-                      <!-- Header -->
-                      <div class="a4-header">
-                            <img src="img/company_logo.png" class="header-logo" alt="Logo">
-                            
-                            <!-- Custom Page Title (Center) -->
-                            <div class="header-page-title" id="current-page-title">
-                                ${(() => {
+                     <!-- A4 Paper Visual -->
+                     <div class="a4-page">
+                          <!-- Watermark -->
+                          <div class="watermark-overlay"></div>
+                          
+                          <!-- Header -->
+                          <div class="a4-header">
+                                <img src="img/company_logo.png" class="header-logo" alt="Logo">
+                                
+                                <!-- Custom Page Title (Center) -->
+                                <div class="header-page-title" id="current-page-title">
+                                    ${(() => {
             const pages = client.systemPages || [];
             const activeIdx = app.currentSystemPageIndex || 0;
             const page = pages[activeIdx];
             return (typeof page === 'object' && page.title) ? page.title : `صفحة ${activeIdx + 1}`;
         })()}
-                            </div>
+                                </div>
 
-                            <!-- QR Code replaces text -->
-                            <img src="img/qr_code.png" class="header-qr" alt="Instagram">
-                      </div>
+                                <!-- QR Code replaces text -->
+                                <img src="img/qr_code.png" class="header-qr" alt="Instagram">
+                          </div>
 
-                      <!-- Content (TinyMCE) -->
-                      <div class="editor-wrapper-inner">
-                        <textarea id="tinymce-editor"></textarea>
-                      </div>
-
-                      <!-- Footer Removed -->
+                          <!-- Content (TinyMCE) -->
+                          <div class="editor-wrapper-inner">
+                            <textarea id="tinymce-editor"></textarea>
+                          </div>
+                     </div>
                  </div>
             </div>
         </div>

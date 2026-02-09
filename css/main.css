@@ -1406,6 +1406,49 @@ body {
     border: none !important;
 }
 
+/* --- TinyMCE Page Image Classes --- */
+.img-inline {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.img-wrap-right {
+    float: right;
+    margin: 10px 0 10px 20px;
+    clear: right;
+}
+
+.img-wrap-left {
+    float: left;
+    margin: 10px 20px 10px 0;
+    clear: left;
+}
+
+.img-center {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    clear: both;
+}
+
+/* Advanced Positioning */
+.img-absolute {
+    position: absolute !important;
+    z-index: 10;
+}
+
+.img-front {
+    position: absolute !important;
+    z-index: 20;
+}
+
+.img-behind {
+    position: absolute !important;
+    z-index: 0;
+    /* Requires text to be transparent or higher z-index? */
+    opacity: 0.6;
+}
+
 /* Page Break Helper */
 /* --- System Tab: A4 Layout --- */
 .editor-wrapper-a4 {
@@ -1413,12 +1456,13 @@ body {
     padding: 40px;
     display: flex;
     flex-direction: column;
-    /* Stack tabs and page */
     align-items: center;
-    /* Center them */
     overflow-y: auto;
+    overflow-x: auto;
+    /* Enable horizontal scroll */
+    width: 100%;
+    /* Ensure it fits screen */
     border-radius: 16px 16px 0 0;
-    /* Rounded top corners per request */
 }
 
 /* Tabs Styling */
@@ -1566,7 +1610,9 @@ body {
 
 .a4-page {
     width: 210mm;
+    height: 297mm;
     min-height: 297mm;
+    /* Fallback */
     background: white;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     position: relative;
@@ -1574,6 +1620,10 @@ body {
     display: flex;
     flex-direction: column;
     margin-bottom: 40px;
+    overflow: hidden;
+    /* Clip overflow to keep A4 look */
+    align-self: center;
+    flex-shrink: 0;
 }
 
 .watermark-overlay {
@@ -1604,6 +1654,26 @@ body {
     align-items: center;
     position: relative;
     /* For absolute centering of title */
+}
+
+/* Ensure editor fits perfectly in remaining space */
+.editor-wrapper-inner {
+    width: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* Force clipping */
+    padding: 0 2cm 2.5cm 2cm;
+    /* Side/Bottom Margins for text body */
+    box-sizing: border-box;
+}
+
+/* Force TinyMCE iframe to respect container */
+.editor-wrapper-inner .tox-tinymce {
+    border: none !important;
+    height: 100% !important;
+    flex: 1;
 }
 
 .header-page-title {

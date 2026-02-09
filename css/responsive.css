@@ -166,6 +166,20 @@
         font-size: 14px;
     }
 
+    /* Editor Wrapper Mobile Optimization */
+    .editor-wrapper-a4 {
+        padding: 10px;
+        align-items: flex-start;
+        /* Start align to prevent left-clipping on overflow */
+    }
+
+    .a4-page,
+    .system-tabs-container {
+        margin-left: auto;
+        margin-right: auto;
+        /* Center if space allows */
+    }
+
     /* Schedule Split Layout Mobile Tweak */
     .schedule-split-container {
         flex-direction: row;
