@@ -498,9 +498,23 @@ const app = {
         modalContainer.innerHTML = Views.imageModal(src);
     },
 
-    resetSystem: function () {
-        localStorage.removeItem(dataManager.STORAGE_KEY);
-        location.reload();
+    resetSystemPages: function () {
+        this.confirmAction('هل أنت متأكد من تصفير النظام؟ سيتم حذف جميع الصفحات والبدء من جديد.', () => {
+            const client = dataManager.getClientById(this.currentClientId);
+            client.systemPages = [{ title: 'الصفحة 1', content: '' }];
+            dataManager.saveClient(client);
+            this.currentSystemPageIndex = 0;
+            this.showToast('تم تصفير النظام بنجاح');
+            this.renderClientSystem(client);
+        });
+    },
+
+    // Helper to refresh just the system tab part? 
+    // Actually viewClient is safer but heavier. 
+    // Let's implement lightweight re-render for system tab if performance is issue.
+    // For now, viewClient with preserveTab=true is fine.
+    renderClientSystem: function (client) {
+        this.viewClient(client.id, true);
     },
 
     switchTab: function (tabId, btnElement) {
@@ -514,6 +528,8 @@ const app = {
             // Init TinyMCE
             setTimeout(() => {
                 this.initTinyMCE();
+                // Ensure correct page is shown (preview or editor)
+                this.switchSystemPage(this.currentSystemPageIndex || 0);
             }, 100);
         }
     },
@@ -550,7 +566,11 @@ const app = {
 
         // Get content, handling string vs object
         const pageData = pages[this.currentSystemPageIndex];
-        const initialContent = (typeof pageData === 'object' && pageData.content !== undefined) ? pageData.content : (typeof pageData === 'string' ? pageData : '');
+
+        // If current page is NOT editor, we don't need to load content into editor initially
+        // But we DO need the editor instance for other pages.
+        // Actually, if page type is 'schedule', we hide editor. 
+        const initialContent = (pageData.type === 'editor' || !pageData.type) ? (pageData.content || '') : '';
 
         tinymce.init({
             selector: '#tinymce-editor',
@@ -642,6 +662,12 @@ const app = {
                         } catch (e) { console.log('Focus error', e); }
                         app.autoFocusNewPage = false;
                     }
+
+                    // Initial Visibility Check
+                    if (pageData.type && pageData.type !== 'editor') {
+                        document.getElementById('tinymce-editor').style.display = 'none'; // Native textarea
+                        editor.getContainer().style.display = 'none'; // Editor UI
+                    }
                 });
                 editor.on('KeyUp NodeChange', () => {
                     app.checkForPageOverflow(editor);
@@ -655,6 +681,12 @@ const app = {
     checkForPageOverflow: function (editor) {
         if (!editor || !editor.getBody()) return;
         if (app.isSplitting) return; // Debounce
+
+        // Only for Editor pages
+        const client = dataManager.getClientById(this.currentClientId);
+        const currentPage = client.systemPages[this.currentSystemPageIndex];
+        if (currentPage && currentPage.type && currentPage.type !== 'editor') return;
+
 
         const body = editor.getBody();
         const lastNode = body.lastElementChild || body.lastChild;
@@ -686,7 +718,7 @@ const app = {
 
             // Save modified current page content
             const currentContent = editor.getContent();
-            const client = dataManager.getClientById(this.currentClientId);
+            // const client = dataManager.getClientById(this.currentClientId); // Already got it
 
             // Ensure data structure
             if (!client.systemPages) client.systemPages = [];
@@ -726,161 +758,230 @@ const app = {
             app.autoFocusNewPage = true;
 
             // Re-render UI
-            this.viewClient(this.currentClientId, true);
+            this.renderClientSystem(client);
 
             setTimeout(() => { app.isSplitting = false; }, 1000);
         }
     },
 
-    switchSystemPage: function (newIndex) {
-        // 1. Save current editor content to local client object (memory)
-        const editor = tinymce.get('tinymce-editor');
-        if (editor) {
-            const currentContent = editor.getContent();
 
-            const client = dataManager.getClientById(this.currentClientId);
-            if (!client.systemPages || client.systemPages.length === 0) {
-                // Initialize if missing
-                client.systemPages = client.systemData ? [{ title: 'الصفحة الرئيسية', content: client.systemData }] : [{ title: 'الصفحة 1', content: '' }];
-            }
-
-            // Normalize current page if string
-            let currentPage = client.systemPages[this.currentSystemPageIndex];
-            if (typeof currentPage === 'string') {
-                client.systemPages[this.currentSystemPageIndex] = { title: `صفحة ${this.currentSystemPageIndex + 1}`, content: currentContent };
-            } else {
-                currentPage.content = currentContent;
-            }
-
-            // 2. Update Index
-            this.currentSystemPageIndex = newIndex;
-
-            // 3. Update UI
-            // Update Tab Styles
-            document.querySelectorAll('.system-tab').forEach((el, idx) => {
-                if (idx === newIndex) el.classList.add('active');
-                else el.classList.remove('active');
-            });
-
-            // Update Header Title
-            const newPage = client.systemPages[newIndex];
-            const newTitle = (typeof newPage === 'object' && newPage.title) ? newPage.title : (typeof newPage === 'string' ? `صفحة ${newIndex + 1}` : '');
-            const titleEl = document.getElementById('current-page-title');
-            if (titleEl) titleEl.innerText = newTitle;
-
-            // Update Editor Content
-            // Check if target page exists (it should)
-            const nextContent = (typeof newPage === 'object' && newPage.content !== undefined) ? newPage.content : (typeof newPage === 'string' ? newPage : '');
-            editor.setContent(nextContent);
-        }
-    },
-
-    addSystemPage: function () {
-        // 1. Save current
-        const editor = tinymce.get('tinymce-editor');
-        if (editor) {
-            const currentContent = editor.getContent();
-            const client = dataManager.getClientById(this.currentClientId);
-
-            // Migration check
-            if (!client.systemPages || client.systemPages.length === 0) {
-                client.systemPages = client.systemData ? [{ title: 'الصفحة الرئيسية', content: client.systemData }] : [{ title: 'الصفحة 1', content: '' }];
-            }
-
-            // Save current
-            let currentPage = client.systemPages[this.currentSystemPageIndex];
-            if (typeof currentPage === 'string') {
-                client.systemPages[this.currentSystemPageIndex] = { title: `صفحة ${this.currentSystemPageIndex + 1}`, content: currentContent };
-            } else {
-                currentPage.content = currentContent;
-            }
-
-            // 2. Add new empty page object
-            client.systemPages.push({
-                title: `صفحة ${client.systemPages.length + 1}`,
-                content: ''
-            });
-
-            // 3. Switch to new page
-            this.currentSystemPageIndex = client.systemPages.length - 1;
-
-            // 4. Force Re-render to show new tab in DOM
-            this.viewClient(this.currentClientId, true);
-        }
-    },
-
-    renameSystemPage: function (index) {
+    addSystemPage: function (type = 'editor') {
         const client = dataManager.getClientById(this.currentClientId);
-        const page = client.systemPages[index];
-        const currentTitle = (typeof page === 'object' && page.title) ? page.title : `صفحة ${index + 1}`;
+        if (!client.systemPages) client.systemPages = [];
 
-        this.openCustomInput('تغيير اسم الصفحة', 'اسم الصفحة الجديد:', currentTitle, (newName) => {
-            if (newName && newName.trim()) {
-                if (typeof page === 'string') {
-                    client.systemPages[index] = { title: newName.trim(), content: page };
-                } else {
-                    page.title = newName.trim();
-                }
-
-                // Save to DB immediately or just update UI?
-                // Let's just update UI and wait for manual Save, OR auto-save structure.
-                // Better to update memory and re-render.
-                this.viewClient(this.currentClientId, true);
+        // Check for duplicates for dynamic types
+        if (type === 'schedule' || type === 'progress') {
+            const existingIndex = client.systemPages.findIndex(p => p.type === type);
+            if (existingIndex !== -1) {
+                this.showToast('هذه الصفحة موجودة بالفعل في النظام');
+                return;
             }
-        });
+        }
+
+        // Save current page state
+        if (this.currentSystemPageIndex !== undefined && client.systemPages[this.currentSystemPageIndex]) {
+            const editor = tinymce.get('tinymce-editor');
+            if (editor && (!client.systemPages[this.currentSystemPageIndex].type || client.systemPages[this.currentSystemPageIndex].type === 'editor')) {
+                const content = editor.getContent();
+                if (typeof client.systemPages[this.currentSystemPageIndex] === 'string') {
+                    client.systemPages[this.currentSystemPageIndex] = { title: `صفحة ${this.currentSystemPageIndex + 1}`, content: content };
+                } else {
+                    client.systemPages[this.currentSystemPageIndex].content = content;
+                }
+            }
+        }
+
+        let newPage = { title: `صفحة ${client.systemPages.length + 1}`, content: '', type: type };
+        let verifyIndex = -1;
+
+        if (type === 'schedule') {
+            newPage.title = 'الجدول الاسبوعي';
+            newPage.content = ''; // Dynamic
+
+            // Enforce Order: Schedule before Progress
+            const progressIndex = client.systemPages.findIndex(p => p.type === 'progress');
+            if (progressIndex !== -1) {
+                client.systemPages.splice(progressIndex, 0, newPage);
+                verifyIndex = progressIndex;
+                // Shift current index if we inserted before it
+                if (this.currentSystemPageIndex >= progressIndex) {
+                    this.currentSystemPageIndex++;
+                }
+            } else {
+                client.systemPages.push(newPage);
+                verifyIndex = client.systemPages.length - 1;
+            }
+
+        } else if (type === 'progress') {
+            newPage.title = 'سجل المتابعة';
+            newPage.content = ''; // Dynamic
+
+            // Enforce Order: Progress after Schedule
+            const scheduleIndex = client.systemPages.findIndex(p => p.type === 'schedule');
+            if (scheduleIndex !== -1) {
+                // Insert after schedule
+                const insertPos = scheduleIndex + 1;
+                client.systemPages.splice(insertPos, 0, newPage);
+                verifyIndex = insertPos;
+                // Shift current index if we inserted before it
+                if (this.currentSystemPageIndex >= insertPos) {
+                    this.currentSystemPageIndex++;
+                }
+            } else {
+                client.systemPages.push(newPage);
+                verifyIndex = client.systemPages.length - 1;
+            }
+        } else {
+            client.systemPages.push(newPage);
+            verifyIndex = client.systemPages.length - 1;
+        }
+
+        // Save
+        dataManager.saveClient(client);
+
+        this.showToast('تم التضمين بنجاح');
+
+        // Switch to new page if it is an editor page or if system tab is active
+        const systemTabActive = document.getElementById('system') && document.getElementById('system').classList.contains('active');
+        if (type === 'editor' || systemTabActive) {
+            this.currentSystemPageIndex = verifyIndex;
+            this.renderClientSystem(client);
+        } else {
+            // Just refresh UI to update buttons
+            this.renderClientSystem(client);
+        }
     },
 
-    resetSystemPages: function () {
-        this.confirmAction('تحذير: هل أنت متأكد من حذف جميع الصفحات والبدء من جديد؟ سيتم فقدان كل المحتوى.', () => {
+    removeSystemPageByType: function (type) {
+        this.confirmAction('هل أنت متأكد من إخفاء هذه الصفحة من النظام؟', () => {
             const client = dataManager.getClientById(this.currentClientId);
-            if (!client) return;
+            if (!client.systemPages) return;
 
-            // Reset to single empty page
-            client.systemPages = [{ title: 'الصفحة 1', content: '' }];
+            const index = client.systemPages.findIndex(p => p.type === type);
+            if (index === -1) return;
 
-            // Save to DB
-            dataManager.updateClient({
-                id: client.id,
-                systemPages: client.systemPages
-            });
+            client.systemPages.splice(index, 1);
 
-            // Reset Index
-            this.currentSystemPageIndex = 0;
+            // Adjust index
+            if (this.currentSystemPageIndex >= client.systemPages.length) {
+                this.currentSystemPageIndex = Math.max(0, client.systemPages.length - 1);
+            }
 
-            // Re-render
-            this.viewClient(this.currentClientId, true);
-            this.showToast('تم تصفير الصفحات بنجاح');
+            dataManager.saveClient(client);
+            this.showToast('تم الإخفاء بنجاح');
+
+            this.renderClientSystem(client);
         });
     },
 
     deleteSystemPage: function (index) {
         this.confirmAction('هل أنت متأكد من حذف هذه الصفحة؟', () => {
             const client = dataManager.getClientById(this.currentClientId);
-            if (!client.systemPages) return;
+            if (!client.systemPages || client.systemPages.length <= 1) return;
 
-            // Remove page
             client.systemPages.splice(index, 1);
-
-            // If empty, add one back
-            if (client.systemPages.length === 0) {
-                client.systemPages.push({ title: 'الصفحة 1', content: '' });
-            }
 
             // Adjust index
             if (this.currentSystemPageIndex >= client.systemPages.length) {
-                this.currentSystemPageIndex = client.systemPages.length - 1;
+                this.currentSystemPageIndex = Math.max(0, client.systemPages.length - 1);
             }
 
-            // Re-render
-            this.viewClient(this.currentClientId, true);
+            dataManager.saveClient(client);
+            this.showToast('تم الحذف بنجاح');
+            this.renderClientSystem(client);
         });
     },
 
-    saveSystemData: function (clientId) {
-        if (!tinymce.get('tinymce-editor')) return;
+    renameSystemPage: function (index) {
+        const client = dataManager.getClientById(this.currentClientId);
+        const page = client.systemPages[index];
+        const pageData = (typeof page === 'object') ? page : { title: `صفحة ${index + 1}` };
 
+        this.openCustomInput('أدخل اسم الصفحة الجديد', 'اسم الصفحة', pageData.title, (newTitle) => {
+            if (newTitle) {
+                if (typeof client.systemPages[index] === 'string') {
+                    client.systemPages[index] = { title: newTitle, content: page };
+                } else {
+                    client.systemPages[index].title = newTitle;
+                }
+                dataManager.saveClient(client);
+                this.renderClientSystem(client);
+            }
+        });
+    },
+
+    switchSystemPage: function (index) {
+        const client = dataManager.getClientById(this.currentClientId);
+        if (!client.systemPages) return;
+
+        // 1. Save content of currently active page *IF* it is an editor page
+        if (this.currentSystemPageIndex !== undefined && client.systemPages[this.currentSystemPageIndex]) {
+            const oldPage = client.systemPages[this.currentSystemPageIndex];
+            const oldPageType = (typeof oldPage === 'object' && oldPage.type) ? oldPage.type : 'editor';
+
+            if (oldPageType === 'editor' || !oldPageType) {
+                const editor = tinymce.get('tinymce-editor');
+                if (editor) {
+                    const content = editor.getContent();
+                    if (typeof oldPage === 'string') {
+                        client.systemPages[this.currentSystemPageIndex] = { title: `صفحة ${this.currentSystemPageIndex + 1}`, content: content };
+                    } else {
+                        oldPage.content = content;
+                    }
+                }
+            }
+        }
+
+        // 2. Update Index
+        this.currentSystemPageIndex = index;
+
+        // 3. Render Content for NEW page
+        const newPage = client.systemPages[index];
+        const newPageData = (typeof newPage === 'object') ? newPage : { title: `صفحة ${index + 1}`, content: newPage };
+        const newPageType = newPageData.type || 'editor';
+        const newPageContent = newPageData.content || '';
+
+        // UI Updates
+        const tabs = document.querySelectorAll('.system-tab');
+        tabs.forEach((t, i) => {
+            if (i === index) t.classList.add('active');
+            else t.classList.remove('active');
+        });
+
+        const titleEl = document.getElementById('current-page-title');
+        if (titleEl) titleEl.textContent = newPageData.title;
+
+        // Handle Editor vs Dynamic View
+        const previewDiv = document.getElementById('dynamic-page-preview');
+        const editor = tinymce.get('tinymce-editor');
+
+        if (newPageType === 'editor') {
+            // Show Editor
+            if (previewDiv) previewDiv.style.display = 'none';
+            if (editor) {
+                editor.getContainer().style.display = 'block';
+                editor.setContent(newPageContent);
+            }
+        } else {
+            // Show Dynamic Content
+            if (editor) editor.getContainer().style.display = 'none';
+            if (previewDiv) {
+                previewDiv.style.display = 'block';
+
+                if (newPageType === 'schedule') {
+                    previewDiv.innerHTML = Views.renderScheduleTable(client);
+                } else if (newPageType === 'progress') {
+                    previewDiv.innerHTML = Views.renderProgressTable(client);
+                }
+            }
+        }
+        // Save to DB (update local state primarily, user clicks Save for persistence generally, but we can auto-save)
+        // dataManager.saveClient(client); 
+    },
+
+    saveSystemData: function (clientId) {
         // Save current page content first
-        const currentContent = tinymce.get('tinymce-editor').getContent();
+        const editor = tinymce.get('tinymce-editor');
         const client = dataManager.getClientById(clientId);
 
         // Ensure migration
@@ -889,17 +990,27 @@ const app = {
         }
 
         let currentPage = client.systemPages[this.currentSystemPageIndex];
-        if (typeof currentPage === 'string') {
-            client.systemPages[this.currentSystemPageIndex] = { title: `صفحة ${this.currentSystemPageIndex + 1}`, content: currentContent };
-        } else {
-            currentPage.content = currentContent;
+
+        // Check type
+        const type = (currentPage && currentPage.type) ? currentPage.type : 'editor';
+
+        if (type === 'editor') {
+            if (editor) {
+                const currentContent = editor.getContent();
+                if (typeof currentPage === 'string') {
+                    client.systemPages[this.currentSystemPageIndex] = { title: `صفحة ${this.currentSystemPageIndex + 1}`, content: currentContent };
+                } else {
+                    currentPage.content = currentContent;
+                }
+            }
         }
+        // If dynamic, content is auto-generated/linked, but we might want to save the fact it exists. (Already done on add/switch)
 
         // Save to Firebase
         dataManager.updateClient({
             id: clientId,
             systemPages: client.systemPages,
-            // Fallback string
+            // Fallback string for old versions
             systemData: client.systemPages.map(p => (typeof p === 'object' ? p.content : p)).join('<br><hr><br>')
         });
         this.showToast('تم حفظ النظام بنجاح');
@@ -911,51 +1022,52 @@ const app = {
     },
 
     exportSystemPDF: function (clientName) {
-        // We need to gather content from ALL PAGES, not just the editor.
-        // We assume the user clicked Save, OR we grab current state from memory + current editor.
-
         const editor = tinymce.get('tinymce-editor');
         const client = dataManager.getClientById(this.currentClientId);
 
-        // Ensure migration in memory
         if (!client.systemPages || client.systemPages.length === 0) {
             client.systemPages = client.systemData ? [{ title: 'الصفحة الرئيسية', content: client.systemData }] : [{ title: 'الصفحة 1', content: '' }];
         }
 
-        // Clone to avoid mutation
+        // Clone
         let pagesToExport = JSON.parse(JSON.stringify(client.systemPages));
 
-        // Update the CURRENT page in this list with what's currently in the editor
-        if (editor) {
-            const currentContent = editor.getContent();
-            let currentPage = pagesToExport[this.currentSystemPageIndex];
-            if (typeof currentPage === 'string') {
-                pagesToExport[this.currentSystemPageIndex] = { title: `صفحة ${this.currentSystemPageIndex + 1}`, content: currentContent };
-            } else {
-                currentPage.content = currentContent;
+        // Update current if editor
+        if (this.currentSystemPageIndex !== undefined && pagesToExport[this.currentSystemPageIndex]) {
+            const activePage = pagesToExport[this.currentSystemPageIndex];
+            const activeType = activePage.type || 'editor';
+
+            if (activeType === 'editor' && editor) {
+                const currentContent = editor.getContent();
+                if (typeof activePage === 'string') {
+                    pagesToExport[this.currentSystemPageIndex] = { title: `صفحة ${this.currentSystemPageIndex + 1}`, content: currentContent };
+                } else {
+                    activePage.content = currentContent;
+                }
             }
         }
 
-        // Generate stacked HTML for all pages
-
         const logoUrl = 'img/company_logo.png';
 
-        // Helper to generate one A4 page HTML
         const generatePageHtml = (page) => {
-            // Extract content and title
-            const content = (typeof page === 'object' && page.content !== undefined) ? page.content : (typeof page === 'string' ? page : '');
+            let content = '';
             const title = (typeof page === 'object' && page.title) ? page.title : '';
+            const type = (typeof page === 'object' && page.type) ? page.type : 'editor';
+
+            if (type === 'schedule') {
+                content = Views.renderScheduleTable(client);
+            } else if (type === 'progress') {
+                content = Views.renderProgressTable(client);
+            } else {
+                content = (typeof page === 'object' && page.content !== undefined) ? page.content : (typeof page === 'string' ? page : '');
+            }
 
             return `
                 <div class="a4-page">
                     <div class="watermark-overlay"></div>
                     <div class="a4-header">
                         <img src="${logoUrl}" class="header-logo" alt="Logo">
-                        
-                         <!-- Centered Title -->
                         <div class="header-page-title">${title}</div>
-                        
-                        <!-- QR Code -->
                         <img src="img/qr_code.png" class="header-qr" alt="Instagram">
                     </div>
                     <div class="content-wrapper">
@@ -966,11 +1078,8 @@ const app = {
                 </div>
             `;
         };
-
         const allPagesHtml = pagesToExport.map(p => generatePageHtml(p)).join('');
-
         const printWindow = window.open('', '_blank', 'width=900,height=1000');
-
         const fullHtml = `
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
@@ -978,19 +1087,16 @@ const app = {
                 <title>System_${clientName}</title>
                 <style>
                     body { margin: 0; background: #ccc; display: flex; flex-direction: column; align-items: center; font-family: 'Cairo', sans-serif; padding: 20px; gap: 20px; }
-                    
                     @page { margin: 0; size: A4 portrait; }
-                    
                     .a4-page {
                         width: 210mm;
-                        /* Safety margin: 296mm avoids browser rounding errors pushing to next page */
                         height: 296mm;
                         background: white; 
                         position: relative;
                         padding: 0;
                         display: flex;
                         flex-direction: column;
-                        margin-bottom: 20px; /* Preview gap */
+                        margin-bottom: 20px;
                         overflow: hidden;
                     }
                     .watermark-overlay {
@@ -1011,7 +1117,6 @@ const app = {
                     .a4-header {
                         padding: 1.5cm 2cm 0.5cm 2cm;
                         display: flex; justify-content: space-between; align-items: center;
-                        /* border-bottom removed */
                         background: white;
                         z-index: 1;
                         position: relative;
@@ -1022,7 +1127,7 @@ const app = {
                         transform: translateX(-50%);
                         font-size: 24px;
                         font-weight: 700;
-                        color: #166534; /* Green matching theme or primary */
+                        color: #166534;
                         text-align: center;
                         max-width: 40%;
                         white-space: nowrap;
@@ -1031,16 +1136,11 @@ const app = {
                         top: auto;
                         bottom: 10px; 
                     }
-
                     .header-logo { height: 140px; width: auto; }
                     .header-qr { width: 100px; height: 100px; border-radius: 12px; border: 1px solid #eee; }
-                    
                     .content-wrapper { padding: 1cm 2cm; flex-grow: 1; position: relative; z-index: 1;}
                     .content-body { direction: rtl; text-align: right; font-family: 'Cairo', sans-serif; font-size: 14pt; line-height: 1.6; }
-
-                    /* Footer Removed */
                     .a4-footer { display: none; }
-
                     @media print {
                         html, body { 
                             height: auto !important; 
@@ -1050,13 +1150,11 @@ const app = {
                             background: white; 
                             display: block !important; 
                         }
-                        
                         .a4-page { 
                             box-shadow: none; 
                             margin: 0 !important; 
                             padding: 0 !important;
                             width: 100%; 
-                            /* Force strict constraint to avoid spillover */
                             height: 296mm !important; 
                             border: none;
                             page-break-after: always; 
@@ -1084,7 +1182,6 @@ const app = {
             </body>
             </html>
         `;
-
         printWindow.document.write(fullHtml);
         printWindow.document.close();
     },

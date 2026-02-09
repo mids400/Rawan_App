@@ -80,6 +80,11 @@ class DataManager {
         }
     }
 
+    // Alias for updateClient to match app.js usage
+    async saveClient(client) {
+        return this.updateClient(client);
+    }
+
     async deleteClient(id) {
         try {
             await this.db.collection('clients').doc(id).delete();

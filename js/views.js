@@ -1,5 +1,4 @@
 const Views = {
-    // ... (Login remains same, usually would keep it but for brevity in this replace logic I will just overwrite whole file to be safe and clean)
     login: () => `
         <div class="login-container">
             <div class="login-card">
@@ -134,7 +133,10 @@ const Views = {
                         <label>الاسم الكامل</label>
                         <input type="text" name="name" class="form-control" required value="${client ? client.name : ''}" placeholder="الاسم الثلاثي">
                     </div>
-                    <!-- ... Other Inputs Same As Before ... -->
+                    <div class="form-group">
+                        <label>تاريخ الاشتراك</label>
+                        <input type="date" name="joinDate" class="form-control" required value="${client ? client.joinDate : new Date().toISOString().split('T')[0]}">
+                    </div>
                     <div class="form-group">
                         <label>العمر (سنة)</label>
                         <input type="number" name="age" class="form-control" value="${client ? client.age : ''}">
@@ -303,9 +305,23 @@ const Views = {
         <div id="schedule" class="tab-content active">
             <div class="section-header">
                 <h3>جدول التمارين والوجبات</h3>
-                <button class="btn-sm" onclick="app.enableScheduleEdit('${client.id}')" id="edit-schedule-btn">
-                    <i class="ph ph-pencil"></i> تعديل الجدول
-                </button>
+                <div style="display:flex; gap:10px;">
+                    ${(() => {
+            const hasSchedule = client.systemPages && client.systemPages.some(p => p.type === 'schedule');
+            return `
+                            <button class="btn-sm" onclick="app.addSystemPage('schedule')" title="تضمين في النظام" ${hasSchedule ? 'disabled style="opacity:0.6; cursor:not-allowed;"' : ''}>
+                                ${hasSchedule ? '<i class="ph ph-check-circle" style="color:#166534; font-weight:bold;"></i> تم التضمين' : '<i class="ph ph-plus-circle"></i> تضمين في النظام'}
+                            </button>
+                            <button class="btn-sm" onclick="app.removeSystemPageByType('schedule')" title="إخفاء من النظام" style="${hasSchedule ? 'background:#fee2e2; color:#dc2626; border:1px solid #fecaca;' : 'background:#f3f4f6; color:#9ca3af; border:1px solid #e5e7eb; cursor:not-allowed;'}" ${!hasSchedule ? 'disabled' : ''}>
+                                <i class="ph ph-minus-circle"></i> إخفاء من النظام
+                            </button>
+                        `;
+        })()}
+                    <div style="width:1px; background:#ccc; margin:0 5px;"></div>
+                    <button class="btn-sm" onclick="app.enableScheduleEdit('${client.id}')" id="edit-schedule-btn">
+                        <i class="ph ph-pencil"></i> تعديل الجدول
+                    </button>
+                </div>
                 <div id="save-schedule-actions" style="display:none; gap:10px;">
                     <button class="btn-sm" onclick="app.cancelScheduleEdit('${client.id}')">إلغاء</button>
                     <button class="btn-primary" onclick="app.saveSchedule('${client.id}')">حفظ التغييرات</button>
@@ -352,9 +368,23 @@ const Views = {
              <div class="recent-clients-section">
                 <div class="section-header">
                     <h3>سجل القياسات والوزن</h3>
-                    <button class="btn-sm" onclick="app.resetProgressForm(); document.getElementById('add-progress-form').style.display='block'">
-                        <i class="ph ph-plus"></i> إضافة تحديث
-                    </button>
+                    <div style="display:flex; gap:10px;">
+                        ${(() => {
+            const hasProgress = client.systemPages && client.systemPages.some(p => p.type === 'progress');
+            return `
+                                <button class="btn-sm" onclick="app.addSystemPage('progress')" title="تضمين في النظام" ${hasProgress ? 'disabled style="opacity:0.6; cursor:not-allowed;"' : ''}>
+                                    ${hasProgress ? '<i class="ph ph-check-circle" style="color:#166534; font-weight:bold;"></i> تم التضمين' : '<i class="ph ph-plus-circle"></i> تضمين في النظام'}
+                                </button>
+                                <button class="btn-sm" onclick="app.removeSystemPageByType('progress')" title="إخفاء من النظام" style="${hasProgress ? 'background:#fee2e2; color:#dc2626; border:1px solid #fecaca;' : 'background:#f3f4f6; color:#9ca3af; border:1px solid #e5e7eb; cursor:not-allowed;'}" ${!hasProgress ? 'disabled' : ''}>
+                                    <i class="ph ph-minus-circle"></i> إخفاء من النظام
+                                </button>
+                            `;
+        })()}
+                        <div style="width:1px; background:#ccc; margin:0 5px;"></div>
+                        <button class="btn-sm" onclick="app.resetProgressForm(); document.getElementById('add-progress-form').style.display='block'">
+                            <i class="ph ph-plus"></i> إضافة تحديث
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Add/Edit Progress Form -->
@@ -462,6 +492,7 @@ const Views = {
             <div class="section-header">
                     <h3>نظام المشترك</h3>
                     <div style="display:flex; gap:10px;">
+                    
                     <button class="btn-sm" style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca;" onclick="app.resetSystemPages()" title="حذف جميع الصفحات والبدء من جديد">
                         <i class="ph ph-trash"></i> تصفير
                     </button>
@@ -489,25 +520,20 @@ const Views = {
                      <div class="system-tabs-container">
                         ${(() => {
             const pages = (client.systemPages && client.systemPages.length > 0) ? client.systemPages : [''];
-            // Render tabs. 
             const activeIdx = app.currentSystemPageIndex || 0;
-
             let tabsHtml = '';
-
             pages.forEach((page, i) => {
-                // Handle Migration: Page might be string or object
-                const pageTitle = (typeof page === 'object' && page.title) ? page.title : `صفحة ${i + 1}`;
+                const pageData = (typeof page === 'object') ? page : { title: `صفحة ${i + 1}` };
+                const pageTitle = pageData.title || `صفحة ${i + 1}`;
+                const icon = pageData.type === 'schedule' ? '<i class="ph ph-table" style="font-size:12px; margin-left:4px;"></i> ' :
+                    pageData.type === 'progress' ? '<i class="ph ph-chart-line-up" style="font-size:12px; margin-left:4px;"></i> ' : '';
 
-                // 1-based index for display
                 tabsHtml += `<div class="system-tab ${i === activeIdx ? 'active' : ''}" onclick="app.switchSystemPage(${i})" ondblclick="app.renameSystemPage(${i})">
-                                    <span class="tab-title">${pageTitle}</span>
+                                    ${icon}<span class="tab-title">${pageTitle}</span>
                                     ${pages.length > 1 ? `<span class="close-tab" onclick="event.stopPropagation(); app.deleteSystemPage(${i})">&times;</span>` : ''}
                                  </div>`;
             });
-
-            // Add Button at the end (Left in RTL)
             tabsHtml += `<button class="add-page-btn" onclick="app.addSystemPage()" title="إضافة صفحة">+</button>`;
-
             return tabsHtml;
         })()}
                      </div>
@@ -521,7 +547,6 @@ const Views = {
                           <div class="a4-header">
                                 <img src="img/company_logo.png" class="header-logo" alt="Logo">
                                 
-                                <!-- Custom Page Title (Center) -->
                                 <div class="header-page-title" id="current-page-title">
                                     ${(() => {
             const pages = client.systemPages || [];
@@ -531,19 +556,106 @@ const Views = {
         })()}
                                 </div>
 
-                                <!-- QR Code replaces text -->
                                 <img src="img/qr_code.png" class="header-qr" alt="Instagram">
                           </div>
 
-                          <!-- Content (TinyMCE) -->
+                          <!-- Content -->
                           <div class="editor-wrapper-inner">
                             <textarea id="tinymce-editor"></textarea>
+                            <!-- Dynamic Content Preview (Hidden by default) -->
+                            <div id="dynamic-page-preview" style="display:none; width:100%; height:100%; overflow:hidden; padding:10px;"></div>
                           </div>
                      </div>
                  </div>
             </div>
         </div>
     `,
+
+    renderScheduleTable: (client) => `
+        <div class="schedule-print-view">
+            <h3>الجدول الاسبوعي - ${client.name}</h3>
+            <table class="schedule-table-print" style="width:100%; border-collapse:collapse; direction:rtl;">
+                <thead>
+                    <tr style="background:#f3f4f6;">
+                        <th style="border:1px solid #ccc; padding:8px;">اليوم</th>
+                        <th style="border:1px solid #ccc; padding:8px;">الفطور</th>
+                        <th style="border:1px solid #ccc; padding:8px;">الغداء</th>
+                        <th style="border:1px solid #ccc; padding:8px;">العشاء</th>
+                        <th style="border:1px solid #ccc; padding:8px;">التمرين</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${(client.schedule || []).map(day => `
+                        <tr>
+                            <td style="border:1px solid #ccc; padding:8px; font-weight:bold;">${day.day}</td>
+                            <td style="border:1px solid #ccc; padding:8px;">${day.breakfast || '-'}</td>
+                            <td style="border:1px solid #ccc; padding:8px;">${day.lunch || '-'}</td>
+                            <td style="border:1px solid #ccc; padding:8px;">${day.dinner || '-'}</td>
+                            <td style="border:1px solid #ccc; padding:8px;">${day.workout || '-'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `,
+
+    renderProgressTable: (client) => {
+        const start = parseFloat(client.startWeight) || 0;
+        const current = parseFloat(client.currentWeight) || 0;
+        const target = parseFloat(client.targetWeight) || 0;
+        const totalToLose = Math.abs(start - target);
+        const lost = Math.abs(start - current);
+        let pct = 0;
+        if (totalToLose > 0) {
+            pct = (lost / totalToLose) * 100;
+        }
+        pct = Math.min(100, Math.max(0, pct));
+        const isGain = target > start;
+        const statusMsg = pct >= 100 ? "🎉 تم الوصول للهدف!" : (pct > 50 ? "🔥 اقتربت من الهدف!" : "💪 بداية قوية!");
+
+        return `
+        <div class="progress-print-view">
+            <h3>سجل المتابعة - ${client.name}</h3>
+            
+            <!-- Progress Stats Highlight -->
+            <div style="margin:20px 0; padding:15px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; display:flex; align-items:center; justify-content:space-between; direction:rtl;">
+                <div style="flex:1;">
+                    <h4 style="margin:0 0 5px 0;">نسبة الإنجاز</h4>
+                    <div style="font-size:14px; color:#6b7280;">${statusMsg}</div>
+                </div>
+                <div style="flex:2; margin:0 20px;">
+                    <div style="height:12px; width:100%; background:#e5e7eb; border-radius:6px; overflow:hidden;">
+                        <div style="height:100%; width:${pct}%; background:${pct >= 100 ? '#22c55e' : 'var(--primary-500)'};"></div>
+                    </div>
+                </div>
+                <div style="font-size:24px; font-weight:bold; color:var(--primary-700);">${pct.toFixed(1)}%</div>
+            </div>
+
+            <table class="data-table" style="width:100%; border-collapse:collapse; direction:rtl; margin-top:20px;">
+                <thead>
+                    <tr style="background:#f3f4f6;">
+                        <th style="border:1px solid #ccc; padding:8px;">التاريخ</th>
+                        <th style="border:1px solid #ccc; padding:8px;">الوزن</th>
+                        <th style="border:1px solid #ccc; padding:8px;">صدر</th>
+                        <th style="border:1px solid #ccc; padding:8px;">خصر</th>
+                        <th style="border:1px solid #ccc; padding:8px;">أرداف</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${client.progressLogs && client.progressLogs.length > 0 ? client.progressLogs.map(log => `
+                        <tr>
+                            <td style="border:1px solid #ccc; padding:8px;">${log.date}</td>
+                            <td style="border:1px solid #ccc; padding:8px;">${log.weight} كجم</td>
+                            <td style="border:1px solid #ccc; padding:8px;">${log.measurements?.chest || '-'}</td>
+                            <td style="border:1px solid #ccc; padding:8px;">${log.measurements?.waist || '-'}</td>
+                            <td style="border:1px solid #ccc; padding:8px;">${log.measurements?.hips || '-'}</td>
+                        </tr>
+                    `).reverse().join('') : '<tr><td colspan="5" style="border:1px solid #ccc; padding:8px; text-align:center;">لا توجد سجلات</td></tr>'}
+                </tbody>
+            </table>
+        </div>
+    `;
+    },
 
     clientsPage: (clients) => `
         <header class="top-bar">
@@ -608,79 +720,78 @@ const Views = {
                 <div class="avatar"><i class="ph ph-user"></i></div>
             </div>
         </header>
-
-        <div class="settings-card">
-            <div class="settings-item">
-                <div class="settings-info">
-                    <div class="icon-box"><i class="ph ph-palette"></i></div>
-                    <div><h4>ألوان المظهر</h4><p>تخصيص ألوان واجهة التطبيق</p></div>
-                </div>
-                <div style="display:flex; gap:8px;">
-                     <button class="theme-btn orange-btn" onclick="setTheme('theme-orange')" title="برتقالي"></button>
-                     <button class="theme-btn green-btn" onclick="setTheme('theme-green')" title="أخضر"></button>
-                     <button class="theme-btn blue-btn" onclick="setTheme('theme-blue')" title="أزرق"></button>
-                </div>
-            </div>
-            
-             <div class="settings-item">
-                <div class="settings-info">
-                    <div class="icon-box"><i class="ph ph-database"></i></div>
-                    <div><h4>النسخة الاحتياطية</h4><p>تصدير أو استيراد البيانات</p></div>
-                </div>
-                <div style="display:flex; gap:10px;">
-                    <button class="btn-sm" onclick="app.exportBackup()"><i class="ph ph-download-simple"></i> تصدير</button>
-                    <button class="btn-sm" onclick="document.getElementById('import-file').click()" style="background:#e0f2fe; color:#0284c7;">
-                        <i class="ph ph-upload-simple"></i> استيراد
-                    </button>
-                    <input type="file" id="import-file" style="display:none" accept=".json" onchange="app.importBackup(this)">
-                </div>
+        
+        <div class="form-card">
+            <h3>النسخ الاحتياطي والاستعادة</h3>
+            <p>يمكنك تحميل نسخة من جميع بيانات المشتركين كملف JSON واستعادتها لاحقاً.</p>
+            <div style="display:flex; gap:16px; margin-top:20px;">
+                <button class="btn-primary" onclick="dataManager.downloadBackup()">
+                    <i class="ph ph-download-simple"></i> تحميل نسخة احتياطية
+                </button>
+                
+                <input type="file" id="backup-file" style="display:none;" onchange="dataManager.restoreBackup(this)">
+                <button class="btn-secondary" onclick="document.getElementById('backup-file').click()">
+                    <i class="ph ph-upload-simple"></i> استعادة نسخة (Restore)
+                </button>
             </div>
         </div>
         
-        <div class="settings-card danger-zone">
-             <div class="settings-item" style="background:transparent;">
-                 <div class="settings-info"><div><h3>منطقة الخطر</h3><h4>تهيئة النظام</h4><p>حذف جميع المشتركين والبدء من جديد</p></div></div>
-                <button class="btn-danger" onclick="app.confirmAction('تحذير: سيتم حذف جميع البيانات نهائياً! هل أنت متأكد؟', () => app.resetSystem())">حذف الكل</button>
+        <div class="form-card" style="margin-top:20px;">
+            <h3>تسجيل الخروج</h3>
+            <button class="btn-sm" style="background:#fee2e2; color:#dc2626; margin-top:10px;" onclick="app.handleLogout()">
+                <i class="ph ph-sign-out"></i> تسجيل الخروج
+            </button>
+        </div>
+        
+        <!-- Hidden Image Viewer -->
+        <div id="image-viewer-modal" class="image-viewer" onclick="this.style.display='none'">
+            <span class="close-viewer">&times;</span>
+            <img class="viewer-content" id="full-image">
+        </div>
+    `,
+
+    modal: (msg, type = 1) => `
+        <div class="modal-overlay" id="custom-modal" style="display:flex;">
+            <div class="modal-card">
+                <h3 style="margin-bottom:16px;">تأكيد</h3>
+                <p>${msg}</p>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="app.closeModal()">إلغاء</button>
+                    <button class="btn-primary" onclick="app.executeConfirm(0)" style="background:#ef4444; border-color:#ef4444;">تأكيد</button>
+                </div>
             </div>
         </div>
     `,
 
     userProfileModal: () => `
         <div class="modal-overlay" id="user-profile-modal" style="display:flex;" onclick="if(event.target === this) this.remove()">
-            <div class="modal profile-modal">
-                <button class="close-modal-btn" onclick="document.getElementById('user-profile-modal').remove()"><i class="ph ph-x"></i></button>
-                
-                <div class="profile-header-modal">
-                    <div class="large-avatar"><i class="ph ph-user"></i></div>
+            <div class="profile-card-modal">
+                <div class="profile-header">
+                    <div class="profile-avatar"><i class="ph ph-user"></i></div>
                     <h3>${localStorage.getItem('rawan_admin_name') || 'المشرف'}</h3>
-                    <p class="role-badge">مسؤول النظام</p>
+                    <p>مدير النظام</p>
                 </div>
-
-                <div class="profile-actions-list">
-                    <button class="profile-action-btn" onclick="app.openCustomInput('تغيير الاسم', 'الاسم الجديد', '${localStorage.getItem('rawan_admin_name') || 'المشرف'}', (val) => app.changeName(val))">
-                        <i class="ph ph-pencil-simple"></i> تغيير الاسم
-                    </button>
-                    <button class="profile-action-btn" onclick="app.openCustomInput('تغيير كلمة المرور', 'كلمة المرور الجديدة', '', (val) => app.changePassword(val))">
-                        <i class="ph ph-lock-key"></i> تغيير كلمة المرور
-                    </button>
-                    <div class="divider"></div>
-                    <button class="profile-action-btn logout-btn" onclick="app.logout()">
-                        <i class="ph ph-sign-out"></i> تسجيل الخروج
-                    </button>
-                </div>
-            </div>
-        </div>
-    `,
-
-    modal: (message, onConfirmIdx) => `
-        <div class="modal-overlay" id="custom-modal" style="display:flex;">
-            <div class="modal">
-                <div class="modal-icon"><i class="ph ph-question"></i></div>
-                <h3>تأكيد الإجراء</h3>
-                <p>${message}</p>
-                <div class="modal-actions">
-                    <button class="btn-secondary" onclick="app.closeModal()">إلغاء</button>
-                    <button class="btn-primary" onclick="app.executeConfirm(${onConfirmIdx})">نعم، متأكد</button>
+                <div class="profile-body">
+                    <div class="profile-item" onclick="app.openCustomInput('تغيير الاسم', 'الاسم الجديد', '${localStorage.getItem('rawan_admin_name') || ''}', app.changeName.bind(app))">
+                        <i class="ph ph-pencil-simple"></i>
+                        <span>تغيير الاسم</span>
+                    </div>
+                    <div class="profile-item" onclick="app.openCustomInput('تغيير كلمة المرور', 'كلمة المرور الجديدة', '', app.changePassword.bind(app))">
+                        <i class="ph ph-lock-key"></i>
+                        <span>تغيير كلمة المرور</span>
+                    </div>
+                     <div class="profile-item" onclick="setTheme('theme-orange')">
+                        <div class="theme-circle" style="background:#f97316;"></div>
+                        <span>ثيم برتقالي</span>
+                    </div>
+                     <div class="profile-item" onclick="setTheme('theme-green')">
+                        <div class="theme-circle" style="background:#10b981;"></div>
+                        <span>ثيم أخضر</span>
+                    </div>
+                     <div class="profile-item" onclick="setTheme('theme-blue')">
+                        <div class="theme-circle" style="background:#3b82f6;"></div>
+                        <span>ثيم أزرق</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -688,14 +799,14 @@ const Views = {
 
     inputModal: (title, label, value) => `
         <div class="modal-overlay" id="input-modal" style="display:flex;">
-            <div class="modal">
+            <div class="modal-card">
                 <h3>${title}</h3>
-                <div style="text-align:right; margin-bottom:20px;">
-                    <label style="font-weight:700; display:block; margin-bottom:8px;">${label}</label>
+                <div class="form-group" style="margin:20px 0;">
+                    <label>${label}</label>
                     <input type="text" id="modal-input-field" class="form-control" value="${value}">
                 </div>
                 <div class="modal-actions">
-                    <button class="btn-secondary" onclick="document.getElementById('input-modal').remove()">إلغاء</button>
+                    <button class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">إلغاء</button>
                     <button class="btn-primary" onclick="app.submitInputModal()">حفظ</button>
                 </div>
             </div>
@@ -703,10 +814,9 @@ const Views = {
     `,
 
     imageModal: (src) => `
-        <div class="modal-overlay" id="image-modal" style="display:flex;" onclick="document.getElementById('image-modal').remove()">
-             <div style="position:relative; max-width:90%; max-height:90%;">
-                <img src="${src}" style="max-width:100%; max-height:80vh; border-radius:12px; box-shadow:0 20px 50px rgba(0,0,0,0.5);">
-             </div>
+        <div class="image-viewer" style="display:flex;" onclick="this.remove()">
+             <span class="close-viewer">&times;</span>
+            <img class="viewer-content" src="${src}" style="max-height:90vh; max-width:90vw;">
         </div>
     `
 };

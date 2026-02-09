@@ -1,0 +1,90 @@
+/* Missing Modal Styles */
+.modal-card {
+    background: white;
+    padding: var(--spacing-2xl);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 450px;
+    box-shadow: var(--shadow-lg);
+    transform: scale(0.95);
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    text-align: center;
+    border: 1px solid var(--glass-border);
+}
+
+.profile-card-modal {
+    background: white;
+    padding: 0;
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 400px;
+    box-shadow: var(--shadow-lg);
+    transform: scale(0.95);
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+}
+
+.profile-header {
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+    padding: 30px 20px;
+    color: white;
+    text-align: center;
+}
+
+.profile-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    margin: 0 auto 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.profile-header h3 {
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+
+.profile-header p {
+    opacity: 0.9;
+    font-size: 14px;
+}
+
+.profile-body {
+    padding: 10px 0;
+}
+
+.profile-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 24px;
+    color: var(--color-gray-700);
+    cursor: pointer;
+    transition: background 0.2s;
+    font-weight: 600;
+}
+
+.profile-item:hover {
+    background: var(--color-gray-50);
+    color: var(--primary-600);
+}
+
+.profile-item i {
+    font-size: 20px;
+    color: var(--color-gray-400);
+}
+
+.theme-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 0 0 1px var(--color-gray-200);
+}
