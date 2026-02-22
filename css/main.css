@@ -2125,3 +2125,36 @@ body {
     border: 2px solid white;
     box-shadow: 0 0 0 1px var(--color-gray-200);
 }
+
+/* Weekly Review Template Styles */
+.weekly-review-print-view {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+.weekly-review-print-view table th, .weekly-review-print-view table td {
+    vertical-align: middle;
+}
+
+
+/* Ensure Weekly Review table isn't cut off on print */
+@media print {
+    .weekly-review-print-view {
+        page-break-inside: avoid;
+    }
+    .weekly-review-print-view table {
+        page-break-inside: auto;
+    }
+    .weekly-review-print-view tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+}
+
+
+/* Ensure dynamic preview uses 100% width and fits A4 bounds closely */
+#dynamic-page-preview .weekly-review-print-view { padding: 0 !important; width: 100%; height: 100%; overflow-y: auto; }
+
+
+/* ensure dynamic preview contents show properly */
+#dynamic-page-preview { display:flex; flex-direction:column; justify-content:flex-start; align-items:stretch; }
+

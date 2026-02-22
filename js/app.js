@@ -399,6 +399,7 @@ const app = {
 
         const processLog = (photoBase64 = null) => {
             const logId = formData.get('logId'); // Check if it's edit mode
+            const client = dataManager.getClientById(clientId);
 
             const logEntry = {
                 id: logId ? Number(logId) : undefined, // Keep existing ID if editing
@@ -408,6 +409,19 @@ const app = {
                     chest: formData.get('chest'),
                     waist: formData.get('waist'),
                     hips: formData.get('hips')
+                },
+                weeklyReview: {
+                    matrix: Array.from({ length: 7 }).map((_, i) => ({
+                        water: formData.get(`wr_water_${i}`) || '',
+                        activity: formData.get(`wr_activity_${i}`) || '',
+                        sleep: formData.get(`wr_sleep_${i}`) || '',
+                        digestion: formData.get(`wr_digestion_${i}`) || '',
+                        unhealthy: formData.get(`wr_unhealthy_${i}`) || '',
+                        energy: formData.get(`wr_energy_${i}`) || ''
+                    })),
+                    note_general: formData.get('wr_note_general') || '',
+                    note_difficulties: formData.get('wr_note_difficulties') || '',
+                    note_best_part: formData.get('wr_note_best_part') || ''
                 },
                 photo: photoBase64
             };
@@ -420,6 +434,23 @@ const app = {
                 // CREATE
                 dataManager.addProgressLog(clientId, logEntry);
                 this.showToast('تم الحفظ');
+
+                // FETCH UPDATED CLIENT to prevent overwriting progress log
+                const updatedClient = dataManager.getClientById(clientId);
+
+                // AUTOMATICALLY ADD WEEKLY REVIEW PAGE
+                if (!updatedClient.systemPages) updatedClient.systemPages = [];
+
+                // We add a new progress page specifically for this date
+                const newPage = {
+                    title: `المتابعة - ${logEntry.date}`,
+                    content: '',
+                    type: 'progress',
+                    logId: Date.now() // to uniquely identify this page's creation context if needed
+                };
+                newPage.logDate = logEntry.date;
+                updatedClient.systemPages.push(newPage);
+                dataManager.saveClient(updatedClient);
             }
 
             this.viewClient(clientId);
@@ -459,6 +490,23 @@ const app = {
         form.elements['waist'].value = log.measurements?.waist || '';
         form.elements['hips'].value = log.measurements?.hips || '';
 
+        // Populate Weekly Review Matrix & Notes
+        if (log.weeklyReview) {
+            if (log.weeklyReview.matrix) {
+                log.weeklyReview.matrix.forEach((dayData, idx) => {
+                    if (form.elements[`wr_water_${idx}`]) form.elements[`wr_water_${idx}`].value = dayData.water || '';
+                    if (form.elements[`wr_activity_${idx}`]) form.elements[`wr_activity_${idx}`].value = dayData.activity || '';
+                    if (form.elements[`wr_sleep_${idx}`]) form.elements[`wr_sleep_${idx}`].value = dayData.sleep || '';
+                    if (form.elements[`wr_digestion_${idx}`]) form.elements[`wr_digestion_${idx}`].value = dayData.digestion || '';
+                    if (form.elements[`wr_unhealthy_${idx}`]) form.elements[`wr_unhealthy_${idx}`].value = dayData.unhealthy || '';
+                    if (form.elements[`wr_energy_${idx}`]) form.elements[`wr_energy_${idx}`].value = dayData.energy || '';
+                });
+            }
+            if (form.elements['wr_note_general']) form.elements['wr_note_general'].value = log.weeklyReview.note_general || '';
+            if (form.elements['wr_note_difficulties']) form.elements['wr_note_difficulties'].value = log.weeklyReview.note_difficulties || '';
+            if (form.elements['wr_note_best_part']) form.elements['wr_note_best_part'].value = log.weeklyReview.note_best_part || '';
+        }
+
         // Update UI Text
         document.getElementById('progress-form-title').innerText = 'تعديل السجل';
         document.getElementById('progress-submit-btn').innerText = 'حفظ التغييرات';
@@ -496,6 +544,53 @@ const app = {
             document.body.appendChild(modalContainer);
         }
         modalContainer.innerHTML = Views.imageModal(src);
+    },
+
+    toggleProgressLogInclusion: function (clientId, logDate) {
+        const client = dataManager.getClientById(clientId);
+        if (!client) return;
+
+        if (!client.systemPages) {
+            client.systemPages = [];
+        }
+
+        // Check if a page for this date already exists
+        const existingPageIndex = client.systemPages.findIndex(p => p.type === 'progress' && p.logDate === logDate);
+
+        if (existingPageIndex !== -1) {
+            // It exists, so we remove it (Exclude)
+            this.confirmAction('هل أنت متأكد من إخفاء هذا التحديث من نظام المشترك؟', () => {
+                client.systemPages.splice(existingPageIndex, 1);
+                dataManager.saveClient(client);
+                this.showToast('تم إخفاء التحديث من النظام');
+                // Re-render to update the toggle button state
+                this.viewClient(clientId);
+                setTimeout(() => {
+                    const btn = document.querySelectorAll('.tab-btn')[1]; // Progress tab usually 2nd (index 1)
+                    if (btn) app.switchTab('progress', btn);
+                }, 50);
+            });
+        } else {
+            // It doesn't exist, so we add it (Include)
+            const newPage = {
+                title: `المتابعة - ${logDate}`,
+                content: '',
+                type: 'progress',
+                logDate: logDate
+            };
+
+            // Optional: Insert it right after the schedule, or just push to end
+            client.systemPages.push(newPage);
+
+            dataManager.saveClient(client);
+            this.showToast('تم تضمين التحديث في النظام');
+            // Re-render to update the toggle button state
+            this.viewClient(clientId);
+            setTimeout(() => {
+                const btn = document.querySelectorAll('.tab-btn')[1];
+                if (btn) app.switchTab('progress', btn);
+            }, 50);
+        }
     },
 
     resetSystemPages: function () {
@@ -770,7 +865,7 @@ const app = {
         if (!client.systemPages) client.systemPages = [];
 
         // Check for duplicates for dynamic types
-        if (type === 'schedule' || type === 'progress') {
+        if (type === 'schedule') {
             const existingIndex = client.systemPages.findIndex(p => p.type === type);
             if (existingIndex !== -1) {
                 this.showToast('هذه الصفحة موجودة بالفعل في النظام');
@@ -812,25 +907,6 @@ const app = {
                 verifyIndex = client.systemPages.length - 1;
             }
 
-        } else if (type === 'progress') {
-            newPage.title = 'سجل المتابعة';
-            newPage.content = ''; // Dynamic
-
-            // Enforce Order: Progress after Schedule
-            const scheduleIndex = client.systemPages.findIndex(p => p.type === 'schedule');
-            if (scheduleIndex !== -1) {
-                // Insert after schedule
-                const insertPos = scheduleIndex + 1;
-                client.systemPages.splice(insertPos, 0, newPage);
-                verifyIndex = insertPos;
-                // Shift current index if we inserted before it
-                if (this.currentSystemPageIndex >= insertPos) {
-                    this.currentSystemPageIndex++;
-                }
-            } else {
-                client.systemPages.push(newPage);
-                verifyIndex = client.systemPages.length - 1;
-            }
         } else {
             client.systemPages.push(newPage);
             verifyIndex = client.systemPages.length - 1;
@@ -971,7 +1047,7 @@ const app = {
                 if (newPageType === 'schedule') {
                     previewDiv.innerHTML = Views.renderScheduleTable(client);
                 } else if (newPageType === 'progress') {
-                    previewDiv.innerHTML = Views.renderProgressTable(client);
+                    previewDiv.innerHTML = Views.renderProgressTable(client, newPage);
                 }
             }
         }
@@ -1057,7 +1133,7 @@ const app = {
             if (type === 'schedule') {
                 content = Views.renderScheduleTable(client);
             } else if (type === 'progress') {
-                content = Views.renderProgressTable(client);
+                content = Views.renderProgressTable(client, page);
             } else {
                 content = (typeof page === 'object' && page.content !== undefined) ? page.content : (typeof page === 'string' ? page : '');
             }

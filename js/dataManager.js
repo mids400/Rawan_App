@@ -112,6 +112,11 @@ class DataManager {
         if (client) {
             logEntry.id = Date.now(); // Keep using timestamp for sub-item ID
 
+            // Update local memory immediately to prevent race conditions during synchronous saveClient
+            if (!client.progressLogs) client.progressLogs = [];
+            client.progressLogs.push(logEntry);
+            client.currentWeight = logEntry.weight;
+
             // Use arrayUnion to add to the array
             // Note: Update 'currentWeight' as well
             await this.db.collection('clients').doc(clientId).update({
@@ -124,7 +129,6 @@ class DataManager {
     async updateProgressLog(clientId, updatedLog) {
         // Firestore array manipulation is hard for updates. 
         // Easiest strategy: Read user, replace array, Write user.
-        // Or remove old, add new.
         // We will do Read-Modify-Write since we have 'client' locally.
         const client = this.getClientById(clientId);
         if (client) {
@@ -142,6 +146,10 @@ class DataManager {
                 const sortedLogs = [...newLogs].sort((a, b) => new Date(b.date) - new Date(a.date));
                 const newWeight = sortedLogs.length > 0 ? sortedLogs[0].weight : client.currentWeight;
 
+                // Update local memory
+                client.progressLogs = newLogs;
+                client.currentWeight = newWeight;
+
                 await this.db.collection('clients').doc(clientId).update({
                     progressLogs: newLogs,
                     currentWeight: newWeight
@@ -152,9 +160,12 @@ class DataManager {
 
     async deleteProgressLog(clientId, logId) {
         const client = this.getClientById(clientId);
-        if (client) {
+        if (client && client.progressLogs) {
             const logToDelete = client.progressLogs.find(l => l.id == logId);
             if (logToDelete) {
+                // Remove from local memory
+                client.progressLogs = client.progressLogs.filter(l => l.id != logId);
+
                 await this.db.collection('clients').doc(clientId).update({
                     progressLogs: firebase.firestore.FieldValue.arrayRemove(logToDelete)
                 });

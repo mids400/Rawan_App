@@ -369,18 +369,6 @@ const Views = {
                 <div class="section-header">
                     <h3>سجل القياسات والوزن</h3>
                     <div style="display:flex; gap:10px;">
-                        ${(() => {
-            const hasProgress = client.systemPages && client.systemPages.some(p => p.type === 'progress');
-            return `
-                                <button class="btn-sm" onclick="app.addSystemPage('progress')" title="تضمين في النظام" ${hasProgress ? 'disabled style="opacity:0.6; cursor:not-allowed;"' : ''}>
-                                    ${hasProgress ? '<i class="ph ph-check-circle" style="color:#166534; font-weight:bold;"></i> تم التضمين' : '<i class="ph ph-plus-circle"></i> تضمين في النظام'}
-                                </button>
-                                <button class="btn-sm" onclick="app.removeSystemPageByType('progress')" title="إخفاء من النظام" style="${hasProgress ? 'background:#fee2e2; color:#dc2626; border:1px solid #fecaca;' : 'background:#f3f4f6; color:#9ca3af; border:1px solid #e5e7eb; cursor:not-allowed;'}" ${!hasProgress ? 'disabled' : ''}>
-                                    <i class="ph ph-minus-circle"></i> إخفاء من النظام
-                                </button>
-                            `;
-        })()}
-                        <div style="width:1px; background:#ccc; margin:0 5px;"></div>
                         <button class="btn-sm" onclick="app.resetProgressForm(); document.getElementById('add-progress-form').style.display='block'">
                             <i class="ph ph-plus"></i> إضافة تحديث
                         </button>
@@ -419,8 +407,60 @@ const Views = {
                                 <input type="number" name="hips" class="form-control">
                             </div>
                         </div>
+
+                        <!-- Weekly Review Matrix -->
+                        <div style="margin-top: 20px; border-top: 1px solid var(--color-gray-200); padding-top: 20px;">
+                            <h5 style="margin-bottom: 10px; color: var(--primary-700);">جدول النشاطات الأسبوعية</h5>
+                            <div style="overflow-x: auto;">
+                                <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 11px;">
+                                    <thead>
+                                        <tr style="background: var(--color-gray-100);">
+                                            <th style="padding: 6px; border: 1px solid var(--color-gray-300);">اليوم</th>
+                                            <th style="padding: 6px; border: 1px solid var(--color-gray-300);">الماء</th>
+                                            <th style="padding: 6px; border: 1px solid var(--color-gray-300);">الحركة</th>
+                                            <th style="padding: 6px; border: 1px solid var(--color-gray-300);">ساعات النوم</th>
+                                            <th style="padding: 6px; border: 1px solid var(--color-gray-300);">الهضم</th>
+                                            <th style="padding: 6px; border: 1px solid var(--color-gray-300);">شيء غير صحي</th>
+                                            <th style="padding: 6px; border: 1px solid var(--color-gray-300);">الطاقة</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${['يوم الاحد', 'يوم الاثنين', 'يوم الثلاثاء', 'يوم الأربعاء', 'يوم الخميس', 'يوم الجمعة', 'يوم السبت'].map((day, idx) => `
+                                            <tr>
+                                                <td style="padding: 6px; border: 1px solid var(--color-gray-300); font-weight: bold; background: #fff;">${day}</td>
+                                                <td style="padding: 2px; background: #fff; border: 1px solid var(--color-gray-300);"><input type="text" name="wr_water_${idx}" style="border:none; width:100%; box-sizing:border-box; padding:6px; font-size:12px; background:transparent;" placeholder="لتر/أقداح"></td>
+                                                <td style="padding: 2px; background: #fff; border: 1px solid var(--color-gray-300);"><input type="text" name="wr_activity_${idx}" style="border:none; width:100%; box-sizing:border-box; padding:6px; font-size:12px; background:transparent;" placeholder="جيد.."></td>
+                                                <td style="padding: 2px; background: #fff; border: 1px solid var(--color-gray-300);"><input type="text" name="wr_sleep_${idx}" style="border:none; width:100%; box-sizing:border-box; padding:6px; font-size:12px; background:transparent;" placeholder="من - إلى"></td>
+                                                <td style="padding: 2px; background: #fff; border: 1px solid var(--color-gray-300);"><input type="text" name="wr_digestion_${idx}" style="border:none; width:100%; box-sizing:border-box; padding:6px; font-size:12px; background:transparent;" placeholder="جيد.."></td>
+                                                <td style="padding: 2px; background: #fff; border: 1px solid var(--color-gray-300);"><input type="text" name="wr_unhealthy_${idx}" style="border:none; width:100%; box-sizing:border-box; padding:6px; font-size:12px; background:transparent;" placeholder="لا يوجد"></td>
+                                                <td style="padding: 2px; background: #fff; border: 1px solid var(--color-gray-300);"><input type="text" name="wr_energy_${idx}" style="border:none; width:100%; box-sizing:border-box; padding:6px; font-size:12px; background:transparent;" placeholder="ممتاز"></td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Notes Section -->
+                        <div style="margin-top: 20px; border-top: 1px solid var(--color-gray-200); padding-top: 20px;">
+                            <h5 style="margin-bottom: 10px; color: var(--primary-700);">ملاحظات المراجعة</h5>
+                            <div class="form-grid" style="grid-template-columns: repeat(3, 1fr); gap:16px;">
+                                <div class="form-group">
+                                    <label>ملاحظات المراجع</label>
+                                    <textarea name="wr_note_general" class="form-control" rows="2" placeholder="أدخل الملاحظات هنا..."></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>صعوبات واجهتها</label>
+                                    <textarea name="wr_note_difficulties" class="form-control" rows="2" placeholder="أدخل الصعوبات..."></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>أفضل جزء بالنظام</label>
+                                    <textarea name="wr_note_best_part" class="form-control" rows="2" placeholder="أدخل أفضل جزء..."></textarea>
+                                </div>
+                            </div>
+                        </div>
                         
-                        <div class="form-actions" style="margin-top:16px;">
+                        <div class="form-actions" style="margin-top:24px;">
                             <button type="button" class="btn-secondary" onclick="app.resetProgressForm(); document.getElementById('add-progress-form').style.display='none'">إلغاء</button>
                             <button type="submit" class="btn-primary" id="progress-submit-btn">حفظ التحديث</button>
                         </div>
@@ -437,11 +477,14 @@ const Views = {
                                 <th>خصر</th>
                                 <th>أرداف</th>
                                 <th>الصورة</th>
+                                <th>في النظام</th>
                                 <th>إجراء</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${client.progressLogs && client.progressLogs.length > 0 ? client.progressLogs.map(log => `
+                            ${client.progressLogs && client.progressLogs.length > 0 ? client.progressLogs.map(log => {
+            const isIncluded = client.systemPages && client.systemPages.some(p => p.type === 'progress' && p.logDate === log.date);
+            return `
                                 <tr>
                                     <td>${log.date}</td>
                                     <td style="font-weight:bold; color:var(--primary-600)">${log.weight} كجم</td>
@@ -449,6 +492,11 @@ const Views = {
                                     <td>${log.measurements?.waist || '-'}</td>
                                     <td>${log.measurements?.hips || '-'}</td>
                                     <td>${log.photo ? `<img src="${log.photo}" style="width:40px; height:40px; border-radius:4px; object-fit:cover; cursor:pointer;" onclick="app.viewImage('${log.photo}')">` : '-'}</td>
+                                    <td>
+                                        <button class="btn-sm" onclick="app.toggleProgressLogInclusion('${client.id}', '${log.date}')" style="min-width: 90px; padding: 4px 8px; font-size: 11px; ${isIncluded ? 'background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd;' : 'background:#f3f4f6; color:#6b7280; border:1px solid #d1d5db;'}">
+                                            ${isIncluded ? '<i class="ph ph-check-square"></i> مُضمن' : '<i class="ph ph-square"></i> مخفي'}
+                                        </button>
+                                    </td>
                                     <td>
                                         <div style="display:flex; gap:6px; justify-content:center;">
                                             <button class="btn-sm" style="color:var(--primary-600); background:transparent;" onclick="app.editProgress('${client.id}', ${log.id})" title="تعديل">
@@ -460,7 +508,8 @@ const Views = {
                                         </div>
                                     </td>
                                 </tr>
-                            `).reverse().join('') : '<tr><td colspan="7" style="text-align:center; padding:20px; color:gray">لا توجد سجلات بعد</td></tr>'}
+                            `;
+        }).reverse().join('') : '<tr><td colspan="8" style="text-align:center; padding:20px; color:gray">لا توجد سجلات بعد</td></tr>'}
                         </tbody>
                     </table>
                 </div>
@@ -599,7 +648,7 @@ const Views = {
         </div>
     `,
 
-    renderProgressTable: (client) => {
+    renderProgressTable: (client, pageData) => {
         const start = parseFloat(client.startWeight) || 0;
         const current = parseFloat(client.currentWeight) || 0;
         const target = parseFloat(client.targetWeight) || 0;
@@ -610,49 +659,186 @@ const Views = {
             pct = (lost / totalToLose) * 100;
         }
         pct = Math.min(100, Math.max(0, pct));
-        const isGain = target > start;
         const statusMsg = pct >= 100 ? "🎉 تم الوصول للهدف!" : (pct > 50 ? "🔥 اقتربت من الهدف!" : "💪 بداية قوية!");
 
+        const displayDate = (pageData && pageData.logDate) ? pageData.logDate : new Date().toISOString().split('T')[0];
+
         return `
-        <div class="progress-print-view">
-            <h3>سجل المتابعة - ${client.name}</h3>
-            
-            <!-- Progress Stats Highlight -->
-            <div style="margin:20px 0; padding:15px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; display:flex; align-items:center; justify-content:space-between; direction:rtl;">
-                <div style="flex:1;">
-                    <h4 style="margin:0 0 5px 0;">نسبة الإنجاز</h4>
-                    <div style="font-size:14px; color:#6b7280;">${statusMsg}</div>
-                </div>
-                <div style="flex:2; margin:0 20px;">
-                    <div style="height:12px; width:100%; background:#e5e7eb; border-radius:6px; overflow:hidden;">
-                        <div style="height:100%; width:${pct}%; background:${pct >= 100 ? '#22c55e' : 'var(--primary-500)'};"></div>
+        <div class="weekly-review-print-view" style="font-family: inherit; direction: rtl; padding: 0;">
+            <div style="padding: 0 10px;">
+                
+                <!-- Title & Date -->
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <span style="display: inline-block; background: var(--color-gray-600); color: white; padding: 6px 20px; border-radius: 20px; font-size: 14px; font-weight: bold; margin-bottom: 6px;">
+                        المراجعة الأسبوعية للنظام الصحي
+                    </span>
+                    <div style="color: var(--primary-800); font-weight: bold; font-size: 12px;">
+                        تاريخ المراجعة: <span style="display:inline-block; border-bottom: 1px dashed var(--primary-800); padding: 0 10px;">${displayDate}</span>
                     </div>
                 </div>
-                <div style="font-size:24px; font-weight:bold; color:var(--primary-700);">${pct.toFixed(1)}%</div>
-            </div>
 
-            <table class="data-table" style="width:100%; border-collapse:collapse; direction:rtl; margin-top:20px;">
-                <thead>
-                    <tr style="background:#f3f4f6;">
-                        <th style="border:1px solid #ccc; padding:8px;">التاريخ</th>
-                        <th style="border:1px solid #ccc; padding:8px;">الوزن</th>
-                        <th style="border:1px solid #ccc; padding:8px;">صدر</th>
-                        <th style="border:1px solid #ccc; padding:8px;">خصر</th>
-                        <th style="border:1px solid #ccc; padding:8px;">أرداف</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${client.progressLogs && client.progressLogs.length > 0 ? client.progressLogs.map(log => `
-                        <tr>
-                            <td style="border:1px solid #ccc; padding:8px;">${log.date}</td>
-                            <td style="border:1px solid #ccc; padding:8px;">${log.weight} كجم</td>
-                            <td style="border:1px solid #ccc; padding:8px;">${log.measurements?.chest || '-'}</td>
-                            <td style="border:1px solid #ccc; padding:8px;">${log.measurements?.waist || '-'}</td>
-                            <td style="border:1px solid #ccc; padding:8px;">${log.measurements?.hips || '-'}</td>
-                        </tr>
-                    `).reverse().join('') : '<tr><td colspan="5" style="border:1px solid #ccc; padding:8px; text-align:center;">لا توجد سجلات</td></tr>'}
-                </tbody>
-            </table>
+                <!-- Goal Tracker Mini -->
+                <div style="background:var(--color-gray-50); border:1px solid var(--color-gray-200); border-radius:12px; padding:12px; margin-bottom:15px; page-break-inside: avoid;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span style="font-weight:bold; font-size:12px; color:var(--primary-800);">${statusMsg}</span>
+                        <span style="font-size:11px; font-weight:bold; color:var(--primary-600);">${pct.toFixed(0)}% مكتمل</span>
+                    </div>
+                    <!-- Progress Bar -->
+                    <div style="height:8px; background:var(--color-gray-200); border-radius:4px; overflow:hidden; position:relative;">
+                        <div style="height:100%; background:var(--primary-500); width:${pct}%; transition:width 0.5s;"></div>
+                    </div>
+                    <!-- Stats Grid -->
+                    <div style="display:flex; justify-content:space-between; margin-top:10px; font-size:11px;">
+                        <div style="text-align:center;">
+                            <div style="color:var(--color-gray-500);">الوزن الأولي</div>
+                            <div style="font-weight:bold;">${client.startWeight || '-'} كجم</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="color:var(--color-gray-500);">الوزن الحالي</div>
+                            <div style="font-weight:bold; color:var(--primary-600);">${client.currentWeight || '-'} كجم</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="color:var(--color-gray-500);">الهدف</div>
+                            <div style="font-weight:bold;">${client.targetWeight || '-'} كجم</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weekly Review Table (Diet/Activity Matrix) -->
+                <div style="overflow-x: auto; margin-bottom: 15px;">
+                    <table style="width: 100%; border-collapse: collapse; border: 1px solid var(--primary-800); text-align: center;">
+                        <thead>
+                            <tr>
+                                <th colspan="7" style="border: 1px solid var(--primary-800); background-color: #f8fafc; padding: 4px; color: var(--primary-800); font-weight: bold; font-size: 11px;">نشاطات أخرى</th>
+                            </tr>
+                            <tr>
+                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: middle; width: 65px;">
+                                    <div style="font-weight:bold; font-size:11px;">اليوم</div>
+                                </th>
+                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
+                                    <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">الماء المستهلك</div>
+                                    <div style="font-size:9px;">باللتر أو كم<br>قدح ماء</div>
+                                </th>
+                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
+                                    <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">الحركة والنشاط<br>اليوم</div>
+                                    <div style="font-size:9px;">(جيد- متوسط-<br>ضعيف)</div>
+                                </th>
+                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
+                                    <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">عدد ساعات<br>النوم</div>
+                                    <div style="font-size:9px;">(من -إلى)</div>
+                                </th>
+                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
+                                    <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">الهضم</div>
+                                    <div style="font-size:9px;">(جيد، هل تواجه<br>انتفاخات<br>ومشاكل أخرى)</div>
+                                </th>
+                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
+                                    <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">اذا تم استهلاك أي<br>شيء غير صحي</div>
+                                    <div style="font-size:9px;">(التدخين أو<br>وجبات...)</div>
+                                </th>
+                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
+                                    <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">الطاقة</div>
+                                    <div style="font-size:9px;">(جيدا - متوسط<br>-ضعيف)</div>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${(() => {
+                const days = ['يوم الاحد', 'يوم الاثنين', 'يوم الثلاثاء', 'يوم الأربعاء', 'يوم الخميس', 'يوم الجمعة', 'يوم السبت'];
+                // Find matching log by date
+                let matchedLog = null;
+                if (pageData && pageData.logDate) {
+                    matchedLog = client.progressLogs?.find(l => l.date === pageData.logDate);
+                } else if (client.progressLogs?.length > 0) {
+                    // if no date provided, default to latest log
+                    matchedLog = client.progressLogs[client.progressLogs.length - 1];
+                }
+
+                const wr = matchedLog?.weeklyReview || {
+                    matrix: Array.from({ length: 7 }).map(() => ({ water: '', activity: '', sleep: '', digestion: '', unhealthy: '', energy: '' })),
+                    note_general: '', note_difficulties: '', note_best_part: ''
+                };
+
+                return days.map((day, idx) => {
+                    const d = wr.matrix[idx] || {};
+                    return `
+                                    <tr>
+                                        <td style="border: 1px solid var(--primary-800); padding: 6px 2px; color: var(--primary-800); font-weight: bold; font-size: 10px; background-color: #f8fafc;">${day}</td>
+                                        <td style="border: 1px solid var(--primary-800); padding: 4px;">${d.water || ''}</td>
+                                        <td style="border: 1px solid var(--primary-800); padding: 4px;">${d.activity || ''}</td>
+                                        <td style="border: 1px solid var(--primary-800); padding: 4px;">${d.sleep || ''}</td>
+                                        <td style="border: 1px solid var(--primary-800); padding: 4px;">${d.digestion || ''}</td>
+                                        <td style="border: 1px solid var(--primary-800); padding: 4px;">${d.unhealthy || ''}</td>
+                                        <td style="border: 1px solid var(--primary-800); padding: 4px;">${d.energy || ''}</td>
+                                    </tr>
+                                    `;
+                }).join('');
+            })()}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Progress History Table (Weight and Measurements) -->
+                <div style="overflow-x: auto; margin-bottom: 15px;">
+                    <table style="width: 100%; border-collapse: collapse; border: 1px solid var(--primary-800); text-align: center;">
+                        <thead>
+                            <tr>
+                                <th colspan="5" style="border: 1px solid var(--primary-800); background-color: #f8fafc; padding: 4px; color: var(--primary-800); font-weight: bold; font-size: 11px;">سجل الوزن والقياسات</th>
+                            </tr>
+                            <tr style="font-size: 10px; font-weight: bold;">
+                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800);">التاريخ</th>
+                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800);">الوزن</th>
+                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800);">صدر</th>
+                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800);">خصر</th>
+                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800);">أرداف</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${(() => {
+                let matchedLog = null;
+                if (pageData && pageData.logDate) {
+                    matchedLog = client.progressLogs?.find(l => l.date === pageData.logDate);
+                } else if (client.progressLogs?.length > 0) {
+                    matchedLog = client.progressLogs[client.progressLogs.length - 1];
+                }
+
+                if (matchedLog) {
+                    return `
+                                    <tr style="font-size: 10px;">
+                                        <td style="border: 1px solid var(--primary-800); padding: 4px;">${matchedLog.date}</td>
+                                        <td style="border: 1px solid var(--primary-800); padding: 4px; font-weight:bold;">${matchedLog.weight} كجم</td>
+                                        <td style="border: 1px solid var(--primary-800); padding: 4px;">${matchedLog.measurements?.chest || '-'}</td>
+                                        <td style="border: 1px solid var(--primary-800); padding: 4px;">${matchedLog.measurements?.waist || '-'}</td>
+                                        <td style="border: 1px solid var(--primary-800); padding: 4px;">${matchedLog.measurements?.hips || '-'}</td>
+                                    </tr>
+                                    `;
+                } else {
+                    return '<tr><td colspan="5" style="border: 1px solid var(--primary-800); padding:4px; font-size:10px;">لا توجد سجلات مطابقة</td></tr>';
+                }
+            })()}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Notes Section -->
+                ${(() => {
+                let matchedLog = null;
+                if (pageData && pageData.logDate) {
+                    matchedLog = client.progressLogs?.find(l => l.date === pageData.logDate);
+                } else if (client.progressLogs?.length > 0) {
+                    matchedLog = client.progressLogs[client.progressLogs.length - 1];
+                }
+                const wr = matchedLog?.weeklyReview || {};
+
+                return `
+                    <div style="margin-top: 15px; color: var(--primary-800); font-weight: bold; line-height: 2; font-size: 12px;">
+                        <div style="margin-bottom: 8px;">ملاحظات المراجع : <span style="display:inline-block; border-bottom: 1px dashed var(--primary-800); width: 80%; font-weight:normal; color:#333;">${wr.note_general || ''}</span></div>
+                        <div style="margin-bottom: 8px;">هل واجهت صعوبة في شيء ما ؟ <span style="display:inline-block; border-bottom: 1px dashed var(--primary-800); width: 70%; font-weight:normal; color:#333;">${wr.note_difficulties || ''}</span></div>
+                        <div style="margin-bottom: 8px;">أفضل جزء بالنظام ؟ <span style="display:inline-block; border-bottom: 1px dashed var(--primary-800); width: 75%; font-weight:normal; color:#333;">${wr.note_best_part || ''}</span></div>
+                    </div>
+                    `;
+            })()}
+
+            </div>
         </div>
     `;
     },
