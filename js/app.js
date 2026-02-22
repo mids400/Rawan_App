@@ -43,16 +43,22 @@ const app = {
 
     init: function () {
         this.loadTheme();
-        this.checkAuth();
-        this.setupNavigation();
 
         // State to track current deep view
         this.currentClientId = null;
-
+        this.initialLoadDone = false;
 
         // Initialize DataManager with a callback to render when data changes
         dataManager.init(() => {
             console.log("App: Data updated, re-rendering...");
+
+            if (!this.initialLoadDone) {
+                this.initialLoadDone = true;
+                // Now that we have data, we can securely check auth & route
+                this.checkAuth();
+                this.setupNavigation();
+                return;
+            }
 
             // SECURITY CHECK: Do not render content if not logged in
             if (!this.isAuthenticated) return;
@@ -96,41 +102,212 @@ const app = {
     },
 
     checkAuth: function () {
-        // Cleanup old keys if any
-        localStorage.removeItem('rawan_auth');
-        sessionStorage.removeItem('rawan_auth');
+        // We have two session types now: 'admin' and 'client'
+        const adminSession = sessionStorage.getItem('rawan_app_session');
+        const clientSessionId = sessionStorage.getItem('rawan_client_session_id');
 
-        // Check new session key
-        const session = sessionStorage.getItem('rawan_app_session');
-        if (session === 'true') {
+        if (adminSession === 'true') {
             this.isAuthenticated = true;
+            this.activeRole = 'admin';
             sidebar.style.display = 'flex';
             document.body.classList.add('logged-in');
             this.navigate('dashboard');
+        } else if (clientSessionId) {
+            // Client is logged in
+            this.isAuthenticated = true;
+            this.activeRole = 'client';
+            this.currentClientId = clientSessionId;
+            // Hide sidebar for clients (they only see their profile)
+            sidebar.style.display = 'none';
+            document.body.classList.add('logged-in');
+            // Force navigate to their profile
+            this.navigate('client-portal');
         } else {
             this.isAuthenticated = false;
+            this.activeRole = null;
             this.showLogin();
         }
+    },
+
+    handleLogout: function () {
+        this.confirmAction('هل أنت متأكد من تسجيل الخروج؟', () => {
+            sessionStorage.removeItem('rawan_app_session');
+            sessionStorage.removeItem('rawan_client_session_id');
+            this.isAuthenticated = false;
+            this.activeRole = null;
+            this.currentClientId = null;
+
+            // Remove any open modals
+            const modals = document.querySelectorAll('.modal-overlay, .image-viewer');
+            modals.forEach(m => m.remove());
+
+            // Clean URL and go to login
+            window.location.href = window.location.href.split('?')[0];
+        });
     },
 
     showLogin: function () {
         sidebar.style.display = 'none';
         document.body.classList.remove('logged-in');
         contentArea.innerHTML = Views.login();
+
+        // Check for OTP setup flow if URL params exist
+        const urlParams = new URLSearchParams(window.location.search);
+        const clientId = urlParams.get('client_id');
+        const otp = urlParams.get('otp');
+
+        if (clientId && otp) {
+            this.handleOTPSetup(clientId, otp);
+        }
     },
 
-    handleLogin: function (e) {
+    handleOTPSetup: async function (clientId, otp) {
+        try {
+            const client = await dataManager.db.collection('clients').doc(clientId).get();
+            if (!client.exists) throw new Error("المشترك غير موجود");
+
+            const data = client.data();
+            const now = Date.now();
+
+            // Validate OTP
+            if (data.otp !== otp) throw new Error("رمز التحقق غير صحيح");
+            if (data.otpUsed) throw new Error("تم استخدام هذا الرابط مسبقاً");
+            if (data.otpExpiresAt && now > data.otpExpiresAt) throw new Error("انتهت صلاحية هذا الرابط");
+
+            // Successful validation! Show setup form
+            const hasPhone = !!data.phone;
+            const setupArea = document.getElementById('otp-setup-area');
+            if (setupArea) {
+                setupArea.innerHTML = `
+                    <p style="color:#16a34a; font-weight:bold; margin-bottom:16px;">تم التحقق بنجاح! مرحباً ${data.name}</p>
+                    <p style="font-size:14px; color:var(--color-gray-600); margin-bottom:20px;">
+                        ${hasPhone ? 'يرجى تعيين كلمة مرور جديدة لحسابك.' : 'يرجى إدخال رقم هاتفك وتعيين كلمة مرور لتتمكن من الدخول لاحقاً.'}
+                    </p>
+                    <form onsubmit="app.submitOTPSetup(event, '${clientId}', ${hasPhone})">
+                        ${!hasPhone ? `
+                        <div style="text-align:right; margin-bottom:16px;">
+                            <label style="display:block; margin-bottom:8px; font-weight:bold; color:var(--color-gray-600);">رقم الهاتف الخلوي (للدخول)</label>
+                            <input type="tel" name="phone" class="form-control" placeholder="07XXXXXXXX" required style="text-align:left; direction:ltr;">
+                        </div>
+                        ` : ''}
+                        <div style="text-align:right; margin-bottom:16px;">
+                            <label style="display:block; margin-bottom:8px; font-weight:bold; color:var(--color-gray-600);">كلمة المرور الجديدة</label>
+                            <div style="position:relative;">
+                                <input type="password" name="password" id="setup_password" class="form-control" required style="text-align:left; direction:ltr; padding-right:40px;">
+                                <i class="ph ph-eye" onclick="app.togglePasswordVisibility(this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--color-gray-500); font-size:20px;"></i>
+                            </div>
+                        </div>
+                        <div style="text-align:right; margin-bottom:24px;">
+                            <label style="display:block; margin-bottom:8px; font-weight:bold; color:var(--color-gray-600);">تأكيد كلمة المرور</label>
+                            <div style="position:relative;">
+                                <input type="password" id="setup_password_confirm" class="form-control" required style="text-align:left; direction:ltr; padding-right:40px;">
+                                <i class="ph ph-eye" onclick="app.togglePasswordVisibility(this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--color-gray-500); font-size:20px;"></i>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary" style="width:100%; justify-content:center; padding:16px;">
+                            حفظ والدخول لحسابي <i class="ph ph-check-circle"></i>
+                        </button>
+                    </form>
+                `;
+            }
+
+        } catch (error) {
+            console.error(error);
+            const setupArea = document.getElementById('otp-setup-area');
+            if (setupArea) {
+                setupArea.innerHTML = `
+                    <div style="color:#dc2626; padding:16px; background:#fee2e2; border-radius:8px; margin-bottom:16px;">
+                        <i class="ph ph-warning-circle" style="font-size:24px; margin-bottom:8px;"></i><br>
+                        ${error.message || 'حدث خطأ أثناء التحقق من الرابط'}
+                    </div>
+                    <button class="btn-sm" onclick="window.location.href=window.location.href.split('?')[0]" style="margin:0 auto;">
+                        العودة لصفحة الدخول
+                    </button>
+                `;
+            }
+        }
+    },
+
+    submitOTPSetup: async function (e, clientId, hasPhone) {
         e.preventDefault();
         const formData = new FormData(e.target);
-        if (formData.get('username') === 'admin' && formData.get('password') === '123456') {
-            // Use new key
+        const pass1 = document.getElementById('setup_password').value;
+        const pass2 = document.getElementById('setup_password_confirm').value;
+
+        if (pass1 !== pass2) {
+            this.showToast('كلمات المرور غير متطابقة!');
+            return;
+        }
+
+        if (pass1.length < 6) {
+            this.showToast('كلمة المرور يجب أن تكون 6 أحرف على الأقل.');
+            return;
+        }
+
+        try {
+            const updates = {
+                password: pass1,
+                otpUsed: true
+            };
+
+            // Only update phone if it was provided in the form (new user)
+            if (!hasPhone) {
+                const phone = formData.get('phone');
+                if (phone) updates.phone = phone;
+            }
+
+            // Save to DB and invalidate OTP
+            await dataManager.db.collection('clients').doc(clientId).update(updates);
+
+            // Clean URL and redirect to login
+            this.showToast('تم إعداد الحساب بنجاح! جاري تحويلك لتسجيل الدخول...');
+            setTimeout(() => {
+                window.location.href = window.location.href.split('?')[0];
+            }, 1500);
+        } catch (error) {
+            console.error("Error setting password: ", error);
+            this.showToast('حدث خطأ أثناء حفظ البيانات.');
+        }
+    },
+
+    handleAdminLogin: function (e) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const savedPass = localStorage.getItem('rawan_admin_pass') || '123456';
+
+        if (formData.get('username') === 'admin' && formData.get('password') === savedPass) {
             sessionStorage.setItem('rawan_app_session', 'true');
-            this.isAuthenticated = true;
-            sidebar.style.display = 'flex';
-            document.body.classList.add('logged-in');
-            this.navigate('dashboard');
+            this.checkAuth();
         } else {
-            alert('خطأ في المعلومات');
+            alert('خطأ في معلومات المشرف');
+        }
+    },
+
+    handleClientLogin: async function (e) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const phoneInput = formData.get('phone');
+        const passInput = formData.get('password');
+
+        try {
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> جاري التحقق...';
+            btn.disabled = true;
+
+            const client = await dataManager.getClientByPhone(phoneInput);
+
+            if (client && client.password === passInput) {
+                // Success
+                sessionStorage.setItem('rawan_client_session_id', client.id);
+                this.checkAuth();
+            } else {
+                alert('رقم الهاتف أو كلمة المرور غير صحيحة');
+                btn.innerHTML = 'دخول <i class="ph ph-sign-in"></i>';
+                btn.disabled = false;
+            }
+        } catch (error) {
+            console.error("Login error", error);
+            alert('حدث خطأ أثناء الاتصال بالخادم');
         }
     },
 
@@ -138,9 +315,17 @@ const app = {
         // 1. Close ALL Modals (Profile, Confirm, etc.)
         document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
 
-        // 2. Clear Session
+        // 2. Clear Sessions
         sessionStorage.removeItem('rawan_app_session');
+        sessionStorage.removeItem('rawan_client_session_id');
         this.isAuthenticated = false;
+        this.activeRole = null;
+        this.currentClientId = null;
+
+        // Clean URL if it had OTP params
+        if (window.location.search.includes('otp=')) {
+            window.history.pushState({}, document.title, window.location.pathname);
+        }
 
         // 3. Show Login
         this.showLogin();
@@ -162,24 +347,38 @@ const app = {
     },
 
     navigate: function (pageId, param = null) {
-        if (!this.isAuthenticated) return;
-
-        document.querySelectorAll('.nav-link').forEach(l => {
-            l.classList.remove('active');
-            let targetView = pageId;
-            // Map sub-views to main nav items
-            if (['client', 'add-client', 'edit-client'].includes(pageId)) {
-                targetView = 'clients';
-            }
-            if (l.dataset.view === targetView) l.classList.add('active');
-        });
-
-        // Reset sub-view state unless we are navigating to 'client'
-        if (pageId !== 'client' && pageId !== 'edit-client') {
-            this.currentClientId = null;
+        if (!this.isAuthenticated) {
+            this.showLogin();
+            return;
         }
 
-        switch (pageId) {
+        // --- Role Based Routing ---
+        let targetView = pageId;
+        if (this.activeRole === 'client') {
+            targetView = 'client-portal';
+        } else if (this.activeRole === 'admin' && pageId === 'client-portal') {
+            targetView = 'dashboard';
+        }
+
+        // Update active class on sidebar
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('active');
+            let highlightView = targetView;
+            if (['client', 'add-client', 'edit-client', 'client-portal'].includes(targetView)) {
+                highlightView = 'clients'; // Main tab to highlight
+            }
+            if (link.dataset.view === highlightView) link.classList.add('active');
+        });
+
+        // Clear current client context if not entering a client detail view
+        if (!['client', 'edit-client', 'client-portal'].includes(targetView)) {
+            this.currentClientId = null;
+            if (tinymce.get('tinymce-editor')) {
+                tinymce.get('tinymce-editor').remove();
+            }
+        }
+
+        switch (targetView) {
             case 'dashboard':
                 this.renderDashboard();
                 break;
@@ -195,6 +394,9 @@ const app = {
                 break;
             case 'client':
                 this.viewClient(param);
+                break;
+            case 'client-portal':
+                this.viewClient(this.currentClientId);
                 break;
             case 'settings':
                 contentArea.innerHTML = Views.settings();
@@ -221,7 +423,11 @@ const app = {
         console.log("ViewClient:", clientId, "Pages:", client ? (client.systemPages || []).length : 'N/A');
         if (!client) {
             this.currentClientId = null;
-            this.navigate('dashboard');
+            if (this.activeRole === 'client') {
+                this.handleLogout();
+            } else {
+                this.navigate('dashboard');
+            }
             return;
         }
 
@@ -291,6 +497,7 @@ const app = {
 
     handleClientSubmit: function (e, clientId) {
         e.preventDefault();
+        if (this.activeRole !== 'admin') return;
         const formData = new FormData(e.target);
 
         const clientData = {
@@ -325,6 +532,7 @@ const app = {
     },
 
     deleteClient: function (clientId) {
+        if (this.activeRole !== 'admin') return;
         dataManager.deleteClient(clientId);
         this.showToast('تم حذف المشترك');
         this.navigate('dashboard');
@@ -341,6 +549,17 @@ const app = {
         modalContainer.innerHTML = Views.modal(message, 1);
     },
 
+    showCustomAlert: function (message) {
+        let modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) {
+            modalContainer = document.createElement('div');
+            modalContainer.id = 'modal-container';
+            document.body.appendChild(modalContainer);
+        }
+        // Assuming Views.modal type 0 is an alert (single OK button)
+        modalContainer.innerHTML = Views.modal(message, 0);
+    },
+
     executeConfirm: function (actionIdx) {
         if (this.pendingConfirmAction) {
             this.pendingConfirmAction();
@@ -355,12 +574,14 @@ const app = {
     },
 
     toggleStatus: function (clientId) {
+        if (this.activeRole !== 'admin') return;
         dataManager.toggleStatus(clientId);
         this.viewClient(clientId);
     },
 
     // --- Schedule Logic ---
     enableScheduleEdit: function (clientId) {
+        if (this.activeRole !== 'admin') return;
         document.querySelectorAll('.schedule-input').forEach(input => {
             input.removeAttribute('readonly');
             input.style.backgroundColor = 'white';
@@ -375,6 +596,7 @@ const app = {
     },
 
     saveSchedule: function (clientId) {
+        if (this.activeRole !== 'admin') return;
         const form = document.getElementById('schedule-form');
         const formData = new FormData(form);
         const days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
@@ -393,6 +615,17 @@ const app = {
     },
 
     // --- Progress & Images ---
+    toggleProgressForm: function () {
+        const formContainer = document.getElementById('add-progress-form');
+        if (formContainer.style.display === 'none' || formContainer.style.display === '') {
+            this.resetProgressForm();
+            formContainer.style.display = 'block';
+            formContainer.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            formContainer.style.display = 'none';
+        }
+    },
+
     handleAddProgress: function (e, clientId) {
         e.preventDefault();
         const formData = new FormData(e.target);
@@ -438,19 +671,21 @@ const app = {
                 // FETCH UPDATED CLIENT to prevent overwriting progress log
                 const updatedClient = dataManager.getClientById(clientId);
 
-                // AUTOMATICALLY ADD WEEKLY REVIEW PAGE
-                if (!updatedClient.systemPages) updatedClient.systemPages = [];
+                // AUTOMATICALLY ADD WEEKLY REVIEW PAGE (ADMIN ONLY)
+                if (this.activeRole === 'admin') {
+                    if (!updatedClient.systemPages) updatedClient.systemPages = [];
 
-                // We add a new progress page specifically for this date
-                const newPage = {
-                    title: `المتابعة - ${logEntry.date}`,
-                    content: '',
-                    type: 'progress',
-                    logId: Date.now() // to uniquely identify this page's creation context if needed
-                };
-                newPage.logDate = logEntry.date;
-                updatedClient.systemPages.push(newPage);
-                dataManager.saveClient(updatedClient);
+                    // We add a new progress page specifically for this date
+                    const newPage = {
+                        title: `المتابعة`,
+                        content: '',
+                        type: 'progress',
+                        logId: Date.now() // to uniquely identify this page's creation context if needed
+                    };
+                    newPage.logDate = logEntry.date;
+                    updatedClient.systemPages.push(newPage);
+                    dataManager.saveClient(updatedClient);
+                }
             }
 
             this.viewClient(clientId);
@@ -573,7 +808,7 @@ const app = {
         } else {
             // It doesn't exist, so we add it (Include)
             const newPage = {
-                title: `المتابعة - ${logDate}`,
+                title: 'المتابعة',
                 content: '',
                 type: 'progress',
                 logDate: logDate
@@ -594,6 +829,7 @@ const app = {
     },
 
     resetSystemPages: function () {
+        if (this.activeRole !== 'admin') return;
         this.confirmAction('هل أنت متأكد من تصفير النظام؟ سيتم حذف جميع الصفحات والبدء من جديد.', () => {
             const client = dataManager.getClientById(this.currentClientId);
             client.systemPages = [{ title: 'الصفحة 1', content: '' }];
@@ -626,6 +862,13 @@ const app = {
                 // Ensure correct page is shown (preview or editor)
                 this.switchSystemPage(this.currentSystemPageIndex || 0);
             }, 100);
+        }
+
+        // Handle OTP Timer
+        if (tabId === 'login-data') {
+            this.startOTPTimer();
+        } else if (this.otpInterval) {
+            clearInterval(this.otpInterval);
         }
     },
 
@@ -861,6 +1104,7 @@ const app = {
 
 
     addSystemPage: function (type = 'editor') {
+        if (this.activeRole !== 'admin') return;
         const client = dataManager.getClientById(this.currentClientId);
         if (!client.systemPages) client.systemPages = [];
 
@@ -929,6 +1173,7 @@ const app = {
     },
 
     removeSystemPageByType: function (type) {
+        if (this.activeRole !== 'admin') return;
         this.confirmAction('هل أنت متأكد من إخفاء هذه الصفحة من النظام؟', () => {
             const client = dataManager.getClientById(this.currentClientId);
             if (!client.systemPages) return;
@@ -951,6 +1196,7 @@ const app = {
     },
 
     deleteSystemPage: function (index) {
+        if (this.activeRole !== 'admin') return;
         this.confirmAction('هل أنت متأكد من حذف هذه الصفحة؟', () => {
             const client = dataManager.getClientById(this.currentClientId);
             if (!client.systemPages || client.systemPages.length <= 1) return;
@@ -969,6 +1215,7 @@ const app = {
     },
 
     renameSystemPage: function (index) {
+        if (this.activeRole !== 'admin') return;
         const client = dataManager.getClientById(this.currentClientId);
         const page = client.systemPages[index];
         const pageData = (typeof page === 'object') ? page : { title: `صفحة ${index + 1}` };
@@ -1056,6 +1303,7 @@ const app = {
     },
 
     saveSystemData: function (clientId) {
+        if (this.activeRole !== 'admin') return;
         // Save current page content first
         const editor = tinymce.get('tinymce-editor');
         const client = dataManager.getClientById(clientId);
@@ -1263,7 +1511,26 @@ const app = {
     },
 
     showToast: function (msg) {
-        console.log(msg);
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.innerText = msg;
+        toast.style.position = 'fixed';
+        toast.style.bottom = '20px';
+        toast.style.left = '50%';
+        toast.style.transform = 'translateX(-50%)';
+        toast.style.backgroundColor = 'var(--primary-600)';
+        toast.style.color = 'white';
+        toast.style.padding = '12px 24px';
+        toast.style.borderRadius = '8px';
+        toast.style.zIndex = '9999';
+        toast.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+        toast.style.transition = 'opacity 0.3s ease';
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
     },
 
     // --- Backup & Profile ---
@@ -1343,7 +1610,18 @@ const app = {
     },
 
     showUserProfile: function () {
-        const modalHtml = Views.userProfileModal();
+        const role = this.activeRole || 'admin';
+        let name = localStorage.getItem('rawan_admin_name') || 'المشرف';
+
+        if (role === 'client') {
+            const clientId = this.currentClientId || sessionStorage.getItem('rawan_client_session_id');
+            if (clientId) {
+                const client = dataManager.getClientById(clientId);
+                if (client) name = client.name;
+            }
+        }
+
+        const modalHtml = Views.userProfileModal(role, name);
         const div = document.createElement('div');
         div.innerHTML = modalHtml;
         document.body.appendChild(div.firstElementChild);
@@ -1379,11 +1657,113 @@ const app = {
         }
     },
 
-    changePassword: function (newPass) {
-        if (newPass && newPass.trim()) {
-            localStorage.setItem('rawan_admin_pass', newPass.trim());
-            this.showToast('تم تغيير كلمة المرور');
+    togglePasswordVisibility: function (iconElement) {
+        const input = iconElement.previousElementSibling;
+        if (input.type === 'password') {
+            input.type = 'text';
+            iconElement.classList.replace('ph-eye', 'ph-eye-slash');
+        } else {
+            input.type = 'password';
+            iconElement.classList.replace('ph-eye-slash', 'ph-eye');
         }
+    },
+
+    openPasswordChangeModal: function () {
+        const modalHtml = Views.passwordChangeModal();
+        const div = document.createElement('div');
+        div.innerHTML = modalHtml;
+        document.body.appendChild(div.firstElementChild);
+        const profileModal = document.getElementById('user-profile-modal');
+        if (profileModal) profileModal.remove(); // Close profile
+    },
+
+    submitPasswordChange: function () {
+        const pass1 = document.getElementById('new-password-field').value;
+        const pass2 = document.getElementById('confirm-password-field').value;
+        if (!pass1 || pass1.trim() === '') {
+            this.showToast('يرجى إدخال كلمة المرور');
+            return;
+        }
+        if (pass1 !== pass2) {
+            this.showToast('كلمتا المرور غير متطابقتين');
+            return;
+        }
+        this.changePassword(pass1);
+        const modal = document.getElementById('password-change-modal');
+        if (modal) modal.remove();
+    },
+
+    changePassword: async function (newPass) {
+        if (newPass && newPass.trim()) {
+            if (this.activeRole === 'admin') {
+                localStorage.setItem('rawan_admin_pass', newPass.trim());
+                this.showToast('تم تغيير كلمة المرور بنجاح');
+            } else if (this.activeRole === 'client' && this.currentClientId) {
+                const client = dataManager.getClientById(this.currentClientId);
+                if (client) {
+                    client.password = newPass.trim();
+                    try {
+                        await dataManager.saveClient(client);
+                        this.showToast('تم تغيير كلمة المرور بنجاح');
+                    } catch (err) {
+                        this.showToast('حدث خطأ أثناء الحفظ');
+                        console.error(err);
+                    }
+                }
+            }
+        }
+    },
+
+    // --- OTP Login System ---
+    generateClientOTP: function (clientId) {
+        this.confirmAction('سيتم توليد رمز مرور (PIN) جديد وإلغاء الرمز السابق إن وُجد. هل تريد المتابعة؟', async () => {
+            const { otp, expiresAt } = await dataManager.generateOTP(clientId);
+            this.showToast('تم توليد PIN جديد بنجاح');
+
+            // Re-render the client view to show the new OTP tab data
+            this.viewClient(clientId);
+
+            setTimeout(() => {
+                const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.innerText.includes('بيانات الدخول'));
+                if (btn) this.switchTab('login-data', btn);
+            }, 50);
+        });
+    },
+
+    copyOTPLink: function () {
+        const linkInput = document.getElementById('otp-share-link');
+        if (linkInput) {
+            linkInput.select();
+            document.execCommand('copy');
+            window.getSelection().removeAllRanges();
+            this.showToast('تم نسخ الرابط المباشر بنجاح');
+        }
+    },
+
+    startOTPTimer: function () {
+        if (this.otpInterval) clearInterval(this.otpInterval);
+
+        const timerContainer = document.getElementById('otp-timer');
+        if (!timerContainer) return;
+
+        const expiresAt = parseInt(timerContainer.getAttribute('data-expires'));
+        const countdownSpan = document.getElementById('otp-countdown');
+
+        this.otpInterval = setInterval(() => {
+            const now = Date.now();
+            const timeRemainingMs = expiresAt - now;
+
+            if (timeRemainingMs <= 0) {
+                clearInterval(this.otpInterval);
+                if (countdownSpan) countdownSpan.innerText = "0:00";
+                timerContainer.innerHTML = '<span style="color:#dc2626;">انتهت صلاحية الجلسة، قم بتحديث الصفحة</span>';
+                return;
+            }
+
+            const mins = Math.floor(timeRemainingMs / 60000);
+            const secs = Math.floor((timeRemainingMs % 60000) / 1000);
+            if (countdownSpan) countdownSpan.innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }, 1000);
     }
 };
 

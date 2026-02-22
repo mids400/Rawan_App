@@ -1,24 +1,116 @@
 const Views = {
-    login: () => `
+    login: () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlClientId = urlParams.get('client_id');
+        const urlOtp = urlParams.get('otp');
+
+        // State 1: Client OTP First-Time Login (via link)
+        if (urlClientId && urlOtp) {
+            return `
+            <div class="login-container">
+                <div class="login-card" style="max-width:400px;">
+                    <div class="login-logo" style="background:#ea580c; color:white;"><i class="ph ph-key"></i></div>
+                    <h2 class="login-title" style="font-size:24px;">تفعيل الحساب</h2>
+                    <p class="login-subtitle">جاري التحقق من رمز الدخول...</p>
+                    <div id="otp-setup-area" style="text-align:center; padding:20px;">
+                         <i class="ph ph-spinner ph-spin" style="font-size:32px; color:var(--primary-600);"></i>
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+
+        // State 2: Standard Login Options (Admin or Client)
+        return `
         <div class="login-container">
-            <div class="login-card">
+            <div class="login-card" id="login-selector">
                 <div class="login-logo"><i class="ph ph-plant"></i></div>
                 <h1 class="login-title">روان دايت</h1>
-                <p class="login-subtitle">تسجيل الدخول للوحة التحكم</p>
-                <form onsubmit="app.handleLogin(event)">
+                <p class="login-subtitle">مرحباً بك، يرجى اختيار نوع الدخول</p>
+                
+                <div style="display:flex; flex-direction:column; gap:16px; margin-top:24px;">
+                    <button class="btn-primary" onclick="Views.showClientLoginForm()" style="padding:16px; justify-content:center; font-size:16px;">
+                        <i class="ph ph-user"></i> دخول المشتركين
+                    </button>
+                    <button class="btn-sm" onclick="Views.showAdminLoginForm()" style="padding:16px; justify-content:center; background:#f3f4f6; color:#4b5563; border-color:#e5e7eb; font-size:16px;">
+                        <i class="ph ph-shield-check"></i> دخول الإدارة
+                    </button>
+                </div>
+            </div>
+
+            <!-- Client Login Form (Hidden by default) -->
+            <div class="login-card" id="client-login-form" style="display:none;">
+                <div class="login-logo" style="background:var(--primary-500); color:white;"><i class="ph ph-user"></i></div>
+                <h2 class="login-title" style="font-size:24px;">بوابة المشتركين</h2>
+                <p class="login-subtitle">أدخل رقم الهاتف وكلمة المرور</p>
+                <form onsubmit="app.handleClientLogin(event)">
                     <div style="text-align:right; margin-bottom:16px;">
-                        <input type="text" name="username" class="form-control" placeholder="اسم المستخدم" style="text-align:center;">
+                        <label style="display:block; margin-bottom:8px; font-weight:bold; color:var(--color-gray-600);">رقم الهاتف المعتمد</label>
+                        <input type="tel" name="phone" class="form-control" placeholder="07XXXXXXXX" required style="text-align:left; direction:ltr;">
                     </div>
                     <div style="text-align:right; margin-bottom:24px;">
-                        <input type="password" name="password" class="form-control" placeholder="كلمة المرور" style="text-align:center;">
+                        <label style="display:block; margin-bottom:8px; font-weight:bold; color:var(--color-gray-600);">كلمة المرور</label>
+                        <div style="position:relative;">
+                            <input type="password" name="password" class="form-control" required style="text-align:left; direction:ltr; padding-right:40px;">
+                            <i class="ph ph-eye" onclick="app.togglePasswordVisibility(this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--color-gray-500); font-size:20px;"></i>
+                        </div>
                     </div>
                     <button type="submit" class="btn-primary" style="width:100%; justify-content:center; padding:16px;">
                         دخول <i class="ph ph-sign-in"></i>
                     </button>
+                    <div style="text-align:center; margin-top:16px;">
+                        <a href="#" onclick="app.showCustomAlert('في حال نسيان كلمة المرور، يرجى التواصل مع المشرف لتوليد رابط دخول جديد (PIN) لك.'); return false;" style="color:var(--primary-600); font-size:14px; text-decoration:none; font-weight:500;">هل نسيت كلمة المرور؟</a>
+                    </div>
+                    <button type="button" class="btn-sm" onclick="Views.showLoginSelector()" style="width:100%; justify-content:center; margin-top:12px; background:transparent; border:none; color:var(--color-gray-500);">
+                        رجوع للخيارات
+                    </button>
+                </form>
+            </div>
+
+            <!-- Admin Login Form (Hidden by default) -->
+            <div class="login-card" id="admin-login-form" style="display:none;">
+                <div class="login-logo" style="background:#4b5563; color:white;"><i class="ph ph-shield-check"></i></div>
+                <h2 class="login-title" style="font-size:24px;">لوحة الإدارة</h2>
+                <p class="login-subtitle">تسجيل الدخول للمشرف</p>
+                <form onsubmit="app.handleAdminLogin(event)">
+                    <div style="text-align:right; margin-bottom:16px;">
+                        <input type="text" name="username" class="form-control" placeholder="اسم المستخدم" required style="text-align:center;">
+                    </div>
+                    <div style="text-align:right; margin-bottom:24px;">
+                        <div style="position:relative;">
+                            <input type="password" name="password" class="form-control" placeholder="كلمة المرور" required style="text-align:center; padding-right:40px;">
+                            <i class="ph ph-eye" onclick="app.togglePasswordVisibility(this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--color-gray-500); font-size:20px;"></i>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary" style="width:100%; justify-content:center; padding:16px; background:#4b5563; border-color:#4b5563;">
+                        دخول المدرب <i class="ph ph-sign-in"></i>
+                    </button>
+                    <button type="button" class="btn-sm" onclick="Views.showLoginSelector()" style="width:100%; justify-content:center; margin-top:12px; background:transparent; border:none; color:var(--color-gray-500);">
+                        رجوع للخيارات
+                    </button>
                 </form>
             </div>
         </div>
-    `,
+        `;
+    },
+
+    showClientLoginForm: () => {
+        document.getElementById('login-selector').style.display = 'none';
+        document.getElementById('admin-login-form').style.display = 'none';
+        document.getElementById('client-login-form').style.display = 'block';
+    },
+
+    showAdminLoginForm: () => {
+        document.getElementById('login-selector').style.display = 'none';
+        document.getElementById('client-login-form').style.display = 'none';
+        document.getElementById('admin-login-form').style.display = 'block';
+    },
+
+    showLoginSelector: () => {
+        document.getElementById('client-login-form').style.display = 'none';
+        document.getElementById('admin-login-form').style.display = 'none';
+        document.getElementById('login-selector').style.display = 'block';
+    },
 
     dashboard: (clients) => `
         <header class="top-bar">
@@ -183,20 +275,31 @@ const Views = {
     clientDetail: (client) => `
         <header class="top-bar">
             <div style="display:flex; align-items:center; gap:12px;">
+                ${app.activeRole === 'admin' ? `
                 <button class="btn-sm" onclick="app.navigate('dashboard')">
                     <i class="ph ph-arrow-right"></i>
                 </button>
+                ` : ''}
                 <h2 id="page-title">${client.name}</h2>
                 <span class="status ${client.status}">${client.status === 'active' ? 'نشط' : 'غير فعال'}</span>
             </div>
             
-            <div style="display:flex; gap:10px;">
+            <div style="display:flex; gap:10px; align-items:center;">
+                ${app.activeRole === 'admin' ? `
                 <button class="btn-sm" onclick="app.confirmAction('هل أنت متأكد من تغيير حالة الاشتراك؟', () => app.toggleStatus('${client.id}'))">
                     ${client.status === 'active' ? '<i class="ph ph-pause"></i> تجميد' : '<i class="ph ph-play"></i> تفعيل'}
                 </button>
                 <button class="btn-primary" onclick="app.navigate('edit-client', '${client.id}')">
                     <i class="ph ph-pencil-simple"></i> تعديل
                 </button>
+                ` : ''}
+                <div class="user-profile" onclick="app.showUserProfile()" style="cursor:pointer; margin-right:auto; margin-left:0;">
+                    <div class="user-info-text">
+                        <span class="admin-name">${app.activeRole === 'admin' ? (localStorage.getItem('rawan_admin_name') || 'المشرف') : client.name}</span>
+                        <span class="admin-role">${app.activeRole === 'admin' ? 'Admin' : 'Client'}</span>
+                    </div>
+                    <div class="avatar"><i class="ph ph-user"></i></div>
+                </div>
             </div>
         </header>
 
@@ -299,16 +402,18 @@ const Views = {
             <button class="tab-btn" onclick="app.switchTab('progress', this)">سجل المتابعة</button>
             <button class="tab-btn" onclick="app.switchTab('photos', this)">الصور</button>
             <button class="tab-btn" onclick="app.switchTab('system', this)">نظام المشترك</button>
+            ${app.activeRole === 'admin' ? `<button class="tab-btn" onclick="app.switchTab('login-data', this)">بيانات الدخول</button>` : ''}
         </div>
 
         <!-- Tab: Editable Schedule (Split Layout: Fixed Legend + Compact Scrollable Days) -->
         <div id="schedule" class="tab-content active">
             <div class="section-header">
                 <h3>جدول التمارين والوجبات</h3>
+                ${app.activeRole === 'admin' ? `
                 <div style="display:flex; gap:10px;">
                     ${(() => {
-            const hasSchedule = client.systemPages && client.systemPages.some(p => p.type === 'schedule');
-            return `
+                const hasSchedule = client.systemPages && client.systemPages.some(p => p.type === 'schedule');
+                return `
                             <button class="btn-sm" onclick="app.addSystemPage('schedule')" title="تضمين في النظام" ${hasSchedule ? 'disabled style="opacity:0.6; cursor:not-allowed;"' : ''}>
                                 ${hasSchedule ? '<i class="ph ph-check-circle" style="color:#166534; font-weight:bold;"></i> تم التضمين' : '<i class="ph ph-plus-circle"></i> تضمين في النظام'}
                             </button>
@@ -316,7 +421,7 @@ const Views = {
                                 <i class="ph ph-minus-circle"></i> إخفاء من النظام
                             </button>
                         `;
-        })()}
+            })()}
                     <div style="width:1px; background:#ccc; margin:0 5px;"></div>
                     <button class="btn-sm" onclick="app.enableScheduleEdit('${client.id}')" id="edit-schedule-btn">
                         <i class="ph ph-pencil"></i> تعديل الجدول
@@ -326,21 +431,23 @@ const Views = {
                     <button class="btn-sm" onclick="app.cancelScheduleEdit('${client.id}')">إلغاء</button>
                     <button class="btn-primary" onclick="app.saveSchedule('${client.id}')">حفظ التغييرات</button>
                 </div>
-            </div>
+                ` : ''
+        }
+            </div >
 
-            <form id="schedule-form" class="schedule-split-container">
-                <!-- Fixed Legend (Right) -->
-                <div class="schedule-side-legend">
-                    <div class="legend-header-cell">اليوم</div>
-                    <div class="legend-item-cell"><i class="ph ph-coffee"></i> الفطور</div>
-                    <div class="legend-item-cell"><i class="ph ph-bowl-food"></i> الغداء</div>
-                    <div class="legend-item-cell"><i class="ph ph-moon"></i> العشاء</div>
-                    <div class="legend-item-cell highlight"><i class="ph ph-barbell"></i> التمرين</div>
-                </div>
+    <form id="schedule-form" class="schedule-split-container">
+        <!-- Fixed Legend (Right) -->
+        <div class="schedule-side-legend">
+            <div class="legend-header-cell">اليوم</div>
+            <div class="legend-item-cell"><i class="ph ph-coffee"></i> الفطور</div>
+            <div class="legend-item-cell"><i class="ph ph-bowl-food"></i> الغداء</div>
+            <div class="legend-item-cell"><i class="ph ph-moon"></i> العشاء</div>
+            <div class="legend-item-cell highlight"><i class="ph ph-barbell"></i> التمرين</div>
+        </div>
 
-                <!-- Scrollable Days Area -->
-                <div class="schedule-days-scroll-area">
-                    ${(client.schedule || []).map((day, index) => `
+        <!-- Scrollable Days Area -->
+        <div class="schedule-days-scroll-area">
+            ${(client.schedule || []).map((day, index) => `
                         <div class="day-strip">
                             <div class="day-strip-header">${day.day}</div>
                             <div class="day-strip-body">
@@ -359,20 +466,18 @@ const Views = {
                             </div>
                         </div>
                     `).join('')}
-                </div>
-            </form>
         </div>
+    </form>
+</div>
 
         <!-- Tab: Detailed Progress Stats -->
         <div id="progress" class="tab-content">
-             <div class="recent-clients-section">
+            <div class="recent-clients-section">
                 <div class="section-header">
-                    <h3>سجل القياسات والوزن</h3>
-                    <div style="display:flex; gap:10px;">
-                        <button class="btn-sm" onclick="app.resetProgressForm(); document.getElementById('add-progress-form').style.display='block'">
-                            <i class="ph ph-plus"></i> إضافة تحديث
-                        </button>
-                    </div>
+                    <h3>سجل المتابعة الدوري</h3>
+                    <button class="btn-primary" onclick="app.toggleProgressForm()">
+                        <i class="ph ph-plus-circle"></i> إضافة تحديث جديد
+                    </button>
                 </div>
 
                 <!-- Add/Edit Progress Form -->
@@ -387,7 +492,7 @@ const Views = {
                             </div>
                             <div class="form-group">
                                 <label>الوزن (كجم)</label>
-                                <input type="number" name="weight" class="form-control" required>
+                                <input type="number" step="0.1" name="weight" class="form-control" required>
                             </div>
                              <div class="form-group">
                                 <label>صورة (اختياري)</label>
@@ -396,15 +501,15 @@ const Views = {
 
                             <div class="form-group">
                                 <label>محيط الصدر (سم)</label>
-                                <input type="number" name="chest" class="form-control">
+                                <input type="number" step="0.1" name="chest" class="form-control">
                             </div>
                              <div class="form-group">
                                 <label>محيط الخصر (سم)</label>
-                                <input type="number" name="waist" class="form-control">
+                                <input type="number" step="0.1" name="waist" class="form-control">
                             </div>
                              <div class="form-group">
                                 <label>محيط الأرداف (سم)</label>
-                                <input type="number" name="hips" class="form-control">
+                                <input type="number" step="0.1" name="hips" class="form-control">
                             </div>
                         </div>
 
@@ -440,8 +545,6 @@ const Views = {
                                 </table>
                             </div>
                         </div>
-
-                        <!-- Notes Section -->
                         <div style="margin-top: 20px; border-top: 1px solid var(--color-gray-200); padding-top: 20px;">
                             <h5 style="margin-bottom: 10px; color: var(--primary-700);">ملاحظات المراجعة</h5>
                             <div class="form-grid" style="grid-template-columns: repeat(3, 1fr); gap:16px;">
@@ -462,27 +565,27 @@ const Views = {
                         
                         <div class="form-actions" style="margin-top:24px;">
                             <button type="button" class="btn-secondary" onclick="app.resetProgressForm(); document.getElementById('add-progress-form').style.display='none'">إلغاء</button>
-                            <button type="submit" class="btn-primary" id="progress-submit-btn">حفظ التحديث</button>
+                    <button type="submit" class="btn-primary" id="progress-submit-btn">حفظ التحديث</button>
                         </div>
-                    </form>
-                </div>
+                    </form >
+                </div >
 
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>التاريخ</th>
-                                <th>الوزن</th>
-                                <th>صدر</th>
-                                <th>خصر</th>
-                                <th>أرداف</th>
-                                <th>الصورة</th>
-                                <th>في النظام</th>
-                                <th>إجراء</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${client.progressLogs && client.progressLogs.length > 0 ? client.progressLogs.map(log => {
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>التاريخ</th>
+                    <th>الوزن</th>
+                    <th>صدر</th>
+                    <th>خصر</th>
+                    <th>أرداف</th>
+                    <th>الصورة</th>
+                    ${app.activeRole === 'admin' ? '<th>في النظام</th>' : ''}
+                    <th>إجراء</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${client.progressLogs && client.progressLogs.length > 0 ? client.progressLogs.map(log => {
             const isIncluded = client.systemPages && client.systemPages.some(p => p.type === 'progress' && p.logDate === log.date);
             return `
                                 <tr>
@@ -492,11 +595,13 @@ const Views = {
                                     <td>${log.measurements?.waist || '-'}</td>
                                     <td>${log.measurements?.hips || '-'}</td>
                                     <td>${log.photo ? `<img src="${log.photo}" style="width:40px; height:40px; border-radius:4px; object-fit:cover; cursor:pointer;" onclick="app.viewImage('${log.photo}')">` : '-'}</td>
+                                    ${app.activeRole === 'admin' ? `
                                     <td>
                                         <button class="btn-sm" onclick="app.toggleProgressLogInclusion('${client.id}', '${log.date}')" style="min-width: 90px; padding: 4px 8px; font-size: 11px; ${isIncluded ? 'background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd;' : 'background:#f3f4f6; color:#6b7280; border:1px solid #d1d5db;'}">
                                             ${isIncluded ? '<i class="ph ph-check-square"></i> مُضمن' : '<i class="ph ph-square"></i> مخفي'}
                                         </button>
                                     </td>
+                                    ` : ''}
                                     <td>
                                         <div style="display:flex; gap:6px; justify-content:center;">
                                             <button class="btn-sm" style="color:var(--primary-600); background:transparent;" onclick="app.editProgress('${client.id}', ${log.id})" title="تعديل">
@@ -510,13 +615,13 @@ const Views = {
                                 </tr>
                             `;
         }).reverse().join('') : '<tr><td colspan="8" style="text-align:center; padding:20px; color:gray">لا توجد سجلات بعد</td></tr>'}
-                        </tbody>
-                    </table>
-                </div>
-             </div>
-        </div>
+            </tbody>
+        </table>
+    </div>
+    </div>
+</div>
 
-        <!-- Tab: Photos (Gallery) -->
+        <!-- Tab: Photos(Gallery) -->
         <div id="photos" class="tab-content">
              <div class="recent-clients-section">
                 <!-- Helper to upload specific gallery photos if needed, or just show from progress -->
@@ -537,11 +642,11 @@ const Views = {
         </div>
 
         <!-- Tab: System (Word-like Editor) -->
-        <div id="system" class="tab-content">
-            <div class="section-header">
-                    <h3>نظام المشترك</h3>
-                    <div style="display:flex; gap:10px;">
-                    
+    <div id="system" class="tab-content">
+        <div class="section-header">
+            <h3>نظام المشترك</h3>
+            <div style="display:flex; gap:10px;">
+                ${app.activeRole === 'admin' ? `
                     <button class="btn-sm" style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca;" onclick="app.resetSystemPages()" title="حذف جميع الصفحات والبدء من جديد">
                         <i class="ph ph-trash"></i> تصفير
                     </button>
@@ -551,90 +656,193 @@ const Views = {
                     <button class="btn-primary" onclick="app.saveSystemData('${client.id}')">
                         <i class="ph ph-floppy-disk"></i> حفظ النظام
                     </button>
-                    </div>
+                    ` : `
+                    <button class="btn-sm" onclick="app.exportSystemPDF('${client.name}')">
+                        <i class="ph ph-file-pdf"></i> تصدير PDF
+                    </button>
+                    `}
             </div>
-            
-            <div class="editor-wrapper-a4">
-                 <!-- Zoom Controls -->
-                 <div class="zoom-toolbar" style="width:100%; display:flex; justify-content:center; align-items:center; gap:10px; margin-bottom:15px; direction:ltr;">
-                    <button class="btn-sm" onclick="app.adjustZoom(-0.1)" title="تصغير" style="background:white;"><i class="ph ph-minus"></i></button>
-                    <span id="zoom-level-indicator" style="font-variant-numeric: tabular-nums; font-weight:bold; color:var(--color-gray-600); min-width:45px; text-align:center;">100%</span>
-                    <button class="btn-sm" onclick="app.adjustZoom(0.1)" title="تكبير" style="background:white;"><i class="ph ph-plus"></i></button>
-                    <div style="width:1px; height:20px; background:#e5e7eb; margin:0 5px;"></div>
-                    <button class="btn-sm" onclick="app.resetZoom()" title="fit" style="background:white; font-size:12px;">Fit</button>
-                 </div>
+        </div>
 
-                 <div class="scalable-content" style="transform-origin:top center; transition:transform 0.2s; display:flex; flex-direction:column; align-items:center;">
-                     <!-- Tabs Container -->
-                     <div class="system-tabs-container">
-                        ${(() => {
+        <div class="editor-wrapper-a4">
+            <!-- Zoom Controls -->
+            <div class="zoom-toolbar" style="width:100%; display:flex; justify-content:center; align-items:center; gap:10px; margin-bottom:15px; direction:ltr;">
+                <button class="btn-sm" onclick="app.adjustZoom(-0.1)" title="تصغير" style="background:white;"><i class="ph ph-minus"></i></button>
+                <span id="zoom-level-indicator" style="font-variant-numeric: tabular-nums; font-weight:bold; color:var(--color-gray-600); min-width:45px; text-align:center;">100%</span>
+                <button class="btn-sm" onclick="app.adjustZoom(0.1)" title="تكبير" style="background:white;"><i class="ph ph-plus"></i></button>
+                <div style="width:1px; height:20px; background:#e5e7eb; margin:0 5px;"></div>
+                <button class="btn-sm" onclick="app.resetZoom()" title="fit" style="background:white; font-size:12px;">Fit</button>
+            </div>
+
+            <div class="scalable-content" style="transform-origin:top center; transition:transform 0.2s; display:flex; flex-direction:column; align-items:center;">
+                <!-- Tabs Container -->
+                <div class="system-tabs-container">
+                    ${(() => {
             const pages = (client.systemPages && client.systemPages.length > 0) ? client.systemPages : [''];
             const activeIdx = app.currentSystemPageIndex || 0;
-            let tabsHtml = '';
-            pages.forEach((page, i) => {
+            let tabsHtml = pages.map((page, i) => {
                 const pageData = (typeof page === 'object') ? page : { title: `صفحة ${i + 1}` };
-                const pageTitle = pageData.title || `صفحة ${i + 1}`;
+                let pageTitle = pageData.title || `صفحة ${i + 1}`;
+                if (pageTitle.startsWith('المتابعة -')) {
+                    pageTitle = 'المتابعة';
+                }
                 const icon = pageData.type === 'schedule' ? '<i class="ph ph-table" style="font-size:12px; margin-left:4px;"></i> ' :
                     pageData.type === 'progress' ? '<i class="ph ph-chart-line-up" style="font-size:12px; margin-left:4px;"></i> ' : '';
 
-                tabsHtml += `<div class="system-tab ${i === activeIdx ? 'active' : ''}" onclick="app.switchSystemPage(${i})" ondblclick="app.renameSystemPage(${i})">
+                return `<div class="system-tab ${i === activeIdx ? 'active' : ''}" onclick="app.switchSystemPage(${i})" ondblclick="app.renameSystemPage(${i})">
                                     ${icon}<span class="tab-title">${pageTitle}</span>
-                                    ${pages.length > 1 ? `<span class="close-tab" onclick="event.stopPropagation(); app.deleteSystemPage(${i})">&times;</span>` : ''}
+                                    ${(app.activeRole === 'admin' && pages.length > 1) ? `<span class="close-tab" onclick="event.stopPropagation(); app.deleteSystemPage(${i})">&times;</span>` : ''}
                                  </div>`;
-            });
-            tabsHtml += `<button class="add-page-btn" onclick="app.addSystemPage()" title="إضافة صفحة">+</button>`;
+            }).join('');
+
+            if (app.activeRole === 'admin') {
+                tabsHtml += `<button class="add-page-btn" onclick="app.addSystemPage()" title="إضافة صفحة">+</button>`;
+            }
             return tabsHtml;
         })()}
-                     </div>
+                </div>
 
-                     <!-- A4 Paper Visual -->
-                     <div class="a4-page">
-                          <!-- Watermark -->
-                          <div class="watermark-overlay"></div>
-                          
-                          <!-- Header -->
-                          <div class="a4-header">
-                                <img src="img/company_logo.png" class="header-logo" alt="Logo">
-                                
-                                <div class="header-page-title" id="current-page-title">
-                                    ${(() => {
+                <!-- A4 Paper Visual -->
+                <div class="a4-page">
+                    <!-- Watermark -->
+                    <div class="watermark-overlay"></div>
+
+                    <!-- Header -->
+                    <div class="a4-header">
+                        <img src="img/company_logo.png" class="header-logo" alt="Logo">
+
+                            <div class="header-page-title" id="current-page-title">
+                                ${(() => {
             const pages = client.systemPages || [];
             const activeIdx = app.currentSystemPageIndex || 0;
             const page = pages[activeIdx];
-            return (typeof page === 'object' && page.title) ? page.title : `صفحة ${activeIdx + 1}`;
+            let title = (typeof page === 'object' && page.title) ? page.title : `صفحة ${activeIdx + 1}`;
+            if (title.startsWith('المتابعة -')) {
+                title = 'المتابعة';
+            }
+            return title;
         })()}
-                                </div>
+                            </div>
 
-                                <img src="img/qr_code.png" class="header-qr" alt="Instagram">
-                          </div>
+                            <img src="img/qr_code.png" class="header-qr" alt="Instagram">
+                            </div>
 
-                          <!-- Content -->
-                          <div class="editor-wrapper-inner">
-                            <textarea id="tinymce-editor"></textarea>
-                            <!-- Dynamic Content Preview (Hidden by default) -->
-                            <div id="dynamic-page-preview" style="display:none; width:100%; height:100%; overflow:hidden; padding:10px;"></div>
-                          </div>
-                     </div>
-                 </div>
+                            <!-- Content -->
+                            <div class="editor-wrapper-inner">
+                                <textarea id="tinymce-editor"></textarea>
+                                <!-- Dynamic Content Preview (Hidden by default) -->
+                                <div id="dynamic-page-preview" style="display:none; width:100%; height:100%; overflow:hidden; padding:10px;"></div>
+                            </div>
+                    </div>
+                </div>
             </div>
         </div>
-    `,
+
+        <!-- Tab: Login Data (OTP & Access) -->
+        <div id="login-data" class="tab-content">
+            <div class="section-header">
+                <h3>بيانات الدخول</h3>
+            </div>
+
+            <div style="background:white; border-radius:12px; border:1px solid var(--color-gray-200); padding:24px; max-width:600px; margin:0 auto; text-align:center;">
+                <div style="margin-bottom:24px;">
+                    <button class="btn-primary" onclick="app.generateClientOTP('${client.id}')">
+                        <i class="ph ph-key"></i> توليد PIN جديد
+                    </button>
+                    <hr style="border:none; border-top:1px solid var(--color-gray-200); margin:24px 0;">
+                    
+                    ${client.phone ? `
+                    <div style="margin-bottom:24px; text-align:right; background:var(--color-gray-50); padding:16px; border-radius:8px; border:1px solid var(--color-gray-200);">
+                        <h4 style="color:var(--color-gray-600); margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+                            <i class="ph ph-device-mobile"></i> رقم الهاتف المعتمد
+                        </h4>
+                        <div style="font-size:18px; font-weight:bold; color:var(--primary-800); direction:ltr; text-align:left;">
+                            ${client.phone}
+                        </div>
+                    </div>
+                    ` : `
+                    <div style="margin-bottom:24px; text-align:right; background:#fef2f2; padding:16px; border-radius:8px; border:1px solid #fecaca;">
+                        <h4 style="color:#ef4444; margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+                            <i class="ph ph-warning-circle"></i> غير مسجل الدخول
+                        </h4>
+                        <div style="font-size:14px; color:#b91c1c;">
+                            لم يقم المشترك بتسجيل الدخول وإعداد حسابه بعد.
+                        </div>
+                    </div>
+                    `}
+                </div>
+                ${(() => {
+            const now = Date.now();
+            const hasOTP = !!client.otp;
+            const isExpired = client.otpExpiresAt ? now > client.otpExpiresAt : true;
+            const isUsed = !!client.otpUsed;
+
+            let statusHtml = '';
+            if (!hasOTP) {
+                statusHtml = '<span style="color:var(--color-gray-500);">لم يتم توليد رمز دخول (PIN) بعد.</span>';
+            } else if (isUsed) {
+                statusHtml = '<span style="color:#dc2626; font-weight:bold;">(غير صالح - تم استخدامه مسبقاً)</span><br><span style="font-size:13px; color:var(--color-gray-500);">يجب توليد PIN جديد إذا نسي المشترك كلمة المرور.</span>';
+            } else if (isExpired) {
+                statusHtml = '<span style="color:#ea580c; font-weight:bold;">(منتهي الصلاحية)</span>';
+            } else {
+                statusHtml = '<span style="color:#16a34a; font-weight:bold;">(نشط)</span>';
+            }
+
+            // Calculate remaining time for JS updates if active
+            const timeRemainingMs = (hasOTP && !isUsed && !isExpired) ? (client.otpExpiresAt - now) : 0;
+
+            let html = `
+                        <div style="margin-bottom:24px;">
+                            <h4 style="color:var(--color-gray-600); margin-bottom:8px;">رمز الدخول الحالي (PIN)</h4>
+                            <div style="font-size:32px; font-weight:900; letter-spacing:4px; color:var(--primary-800); background:var(--color-gray-50); padding:16px; border-radius:8px; border:2px dashed var(--primary-300); display:inline-block; min-width:200px;">
+                                ${hasOTP ? client.otp : '------'}
+                            </div>
+                            <div style="margin-top:12px; font-size:14px;">
+                                ${statusHtml}
+                            </div>
+                    `;
+
+            if (hasOTP && !isUsed && !isExpired) {
+                const mins = Math.floor(timeRemainingMs / 60000);
+                const secs = Math.floor((timeRemainingMs % 60000) / 1000);
+                html += `
+                            <div style="margin-top:16px; font-size:14px; font-weight:500; color:#ea580c;" id="otp-timer" data-expires="${client.otpExpiresAt}">
+                                ينتهي خلال: <span id="otp-countdown">${mins}:${secs < 10 ? '0' : ''}${secs}</span> دقيقة
+                            </div>
+                            
+                            <hr style="border:none; border-top:1px solid var(--color-gray-200); margin:24px 0;">
+                            
+                            <h4 style="color:var(--color-gray-600); margin-bottom:12px;">رابط الدخول المباشر</h4>
+                            <div class="form-group" style="display:flex; gap:8px; max-width:400px; margin:0 auto;">
+                                <input type="text" class="form-control" id="otp-share-link" readonly value="${window.location.href.split('?')[0]}?client_id=${client.id}&otp=${client.otp}" style="direction:ltr; text-align:left; background:#f9fafb;">
+                                <button class="btn-sm" onclick="app.copyOTPLink()" title="نسخ الرابط"><i class="ph ph-copy"></i></button>
+                            </div>
+                            <!-- Future: Add QR Code Canvas here -->
+                            <div id="otp-qr-code" style="margin-top:20px; display:flex; justify-content:center;"></div>
+                        `;
+            }
+
+            return html + '</div>';
+        })()}
+            </div>
+        </div>
+        `,
 
     renderScheduleTable: (client) => `
-        <div class="schedule-print-view">
-            <h3>الجدول الاسبوعي - ${client.name}</h3>
-            <table class="schedule-table-print" style="width:100%; border-collapse:collapse; direction:rtl;">
-                <thead>
-                    <tr style="background:#f3f4f6;">
-                        <th style="border:1px solid #ccc; padding:8px;">اليوم</th>
-                        <th style="border:1px solid #ccc; padding:8px;">الفطور</th>
-                        <th style="border:1px solid #ccc; padding:8px;">الغداء</th>
-                        <th style="border:1px solid #ccc; padding:8px;">العشاء</th>
-                        <th style="border:1px solid #ccc; padding:8px;">التمرين</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${(client.schedule || []).map(day => `
+                <div class="schedule-print-view">
+                    <h3>الجدول الاسبوعي - ${client.name}</h3>
+                    <table class="schedule-table-print" style="width:100%; border-collapse:collapse; direction:rtl;">
+                        <thead>
+                            <tr style="background:#f3f4f6;">
+                                <th style="border:1px solid #ccc; padding:8px;">اليوم</th>
+                                <th style="border:1px solid #ccc; padding:8px;">الفطور</th>
+                                <th style="border:1px solid #ccc; padding:8px;">الغداء</th>
+                                <th style="border:1px solid #ccc; padding:8px;">العشاء</th>
+                                <th style="border:1px solid #ccc; padding:8px;">التمرين</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${(client.schedule || []).map(day => `
                         <tr>
                             <td style="border:1px solid #ccc; padding:8px; font-weight:bold;">${day.day}</td>
                             <td style="border:1px solid #ccc; padding:8px;">${day.breakfast || '-'}</td>
@@ -643,10 +851,10 @@ const Views = {
                             <td style="border:1px solid #ccc; padding:8px;">${day.workout || '-'}</td>
                         </tr>
                     `).join('')}
-                </tbody>
-            </table>
-        </div>
-    `,
+                        </tbody>
+                    </table>
+                </div>
+                `,
 
     renderProgressTable: (client, pageData) => {
         const start = parseFloat(client.startWeight) || 0;
@@ -664,85 +872,85 @@ const Views = {
         const displayDate = (pageData && pageData.logDate) ? pageData.logDate : new Date().toISOString().split('T')[0];
 
         return `
-        <div class="weekly-review-print-view" style="font-family: inherit; direction: rtl; padding: 0;">
-            <div style="padding: 0 10px;">
-                
-                <!-- Title & Date -->
-                <div style="text-align: center; margin-bottom: 15px;">
-                    <span style="display: inline-block; background: var(--color-gray-600); color: white; padding: 6px 20px; border-radius: 20px; font-size: 14px; font-weight: bold; margin-bottom: 6px;">
-                        المراجعة الأسبوعية للنظام الصحي
-                    </span>
-                    <div style="color: var(--primary-800); font-weight: bold; font-size: 12px;">
-                        تاريخ المراجعة: <span style="display:inline-block; border-bottom: 1px dashed var(--primary-800); padding: 0 10px;">${displayDate}</span>
-                    </div>
-                </div>
+                <div class="weekly-review-print-view" style="font-family: inherit; direction: rtl; padding: 0;">
+                    <div style="padding: 0 10px;">
 
-                <!-- Goal Tracker Mini -->
-                <div style="background:var(--color-gray-50); border:1px solid var(--color-gray-200); border-radius:12px; padding:12px; margin-bottom:15px; page-break-inside: avoid;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <span style="font-weight:bold; font-size:12px; color:var(--primary-800);">${statusMsg}</span>
-                        <span style="font-size:11px; font-weight:bold; color:var(--primary-600);">${pct.toFixed(0)}% مكتمل</span>
-                    </div>
-                    <!-- Progress Bar -->
-                    <div style="height:8px; background:var(--color-gray-200); border-radius:4px; overflow:hidden; position:relative;">
-                        <div style="height:100%; background:var(--primary-500); width:${pct}%; transition:width 0.5s;"></div>
-                    </div>
-                    <!-- Stats Grid -->
-                    <div style="display:flex; justify-content:space-between; margin-top:10px; font-size:11px;">
-                        <div style="text-align:center;">
-                            <div style="color:var(--color-gray-500);">الوزن الأولي</div>
-                            <div style="font-weight:bold;">${client.startWeight || '-'} كجم</div>
+                        <!-- Title & Date -->
+                        <div style="text-align: center; margin-bottom: 15px;">
+                            <span style="display: inline-block; background: var(--color-gray-600); color: white; padding: 6px 20px; border-radius: 20px; font-size: 14px; font-weight: bold; margin-bottom: 6px;">
+                                المراجعة الأسبوعية للنظام الصحي
+                            </span>
+                            <div style="color: var(--primary-800); font-weight: bold; font-size: 12px;">
+                                تاريخ المراجعة: <span style="display:inline-block; border-bottom: 1px dashed var(--primary-800); padding: 0 10px;">${displayDate}</span>
+                            </div>
                         </div>
-                        <div style="text-align:center;">
-                            <div style="color:var(--color-gray-500);">الوزن الحالي</div>
-                            <div style="font-weight:bold; color:var(--primary-600);">${client.currentWeight || '-'} كجم</div>
-                        </div>
-                        <div style="text-align:center;">
-                            <div style="color:var(--color-gray-500);">الهدف</div>
-                            <div style="font-weight:bold;">${client.targetWeight || '-'} كجم</div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Weekly Review Table (Diet/Activity Matrix) -->
-                <div style="overflow-x: auto; margin-bottom: 15px;">
-                    <table style="width: 100%; border-collapse: collapse; border: 1px solid var(--primary-800); text-align: center;">
-                        <thead>
-                            <tr>
-                                <th colspan="7" style="border: 1px solid var(--primary-800); background-color: #f8fafc; padding: 4px; color: var(--primary-800); font-weight: bold; font-size: 11px;">نشاطات أخرى</th>
-                            </tr>
-                            <tr>
-                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: middle; width: 65px;">
-                                    <div style="font-weight:bold; font-size:11px;">اليوم</div>
-                                </th>
-                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
-                                    <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">الماء المستهلك</div>
-                                    <div style="font-size:9px;">باللتر أو كم<br>قدح ماء</div>
-                                </th>
-                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
-                                    <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">الحركة والنشاط<br>اليوم</div>
-                                    <div style="font-size:9px;">(جيد- متوسط-<br>ضعيف)</div>
-                                </th>
-                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
-                                    <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">عدد ساعات<br>النوم</div>
-                                    <div style="font-size:9px;">(من -إلى)</div>
-                                </th>
-                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
-                                    <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">الهضم</div>
-                                    <div style="font-size:9px;">(جيد، هل تواجه<br>انتفاخات<br>ومشاكل أخرى)</div>
-                                </th>
-                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
-                                    <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">اذا تم استهلاك أي<br>شيء غير صحي</div>
-                                    <div style="font-size:9px;">(التدخين أو<br>وجبات...)</div>
-                                </th>
-                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
-                                    <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">الطاقة</div>
-                                    <div style="font-size:9px;">(جيدا - متوسط<br>-ضعيف)</div>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${(() => {
+                        <!-- Goal Tracker Mini -->
+                        <div style="background:var(--color-gray-50); border:1px solid var(--color-gray-200); border-radius:12px; padding:12px; margin-bottom:15px; page-break-inside: avoid;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                                <span style="font-weight:bold; font-size:12px; color:var(--primary-800);">${statusMsg}</span>
+                                <span style="font-size:11px; font-weight:bold; color:var(--primary-600);">${pct.toFixed(0)}% مكتمل</span>
+                            </div>
+                            <!-- Progress Bar -->
+                            <div style="height:8px; background:var(--color-gray-200); border-radius:4px; overflow:hidden; position:relative;">
+                                <div style="height:100%; background:var(--primary-500); width:${pct}%; transition:width 0.5s;"></div>
+                            </div>
+                            <!-- Stats Grid -->
+                            <div style="display:flex; justify-content:space-between; margin-top:10px; font-size:11px;">
+                                <div style="text-align:center;">
+                                    <div style="color:var(--color-gray-500);">الوزن الأولي</div>
+                                    <div style="font-weight:bold;">${client.startWeight || '-'} كجم</div>
+                                </div>
+                                <div style="text-align:center;">
+                                    <div style="color:var(--color-gray-500);">الوزن الحالي</div>
+                                    <div style="font-weight:bold; color:var(--primary-600);">${client.currentWeight || '-'} كجم</div>
+                                </div>
+                                <div style="text-align:center;">
+                                    <div style="color:var(--color-gray-500);">الهدف</div>
+                                    <div style="font-weight:bold;">${client.targetWeight || '-'} كجم</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Weekly Review Table (Diet/Activity Matrix) -->
+                        <div style="overflow-x: auto; margin-bottom: 15px;">
+                            <table style="width: 100%; border-collapse: collapse; border: 1px solid var(--primary-800); text-align: center;">
+                                <thead>
+                                    <tr>
+                                        <th colspan="7" style="border: 1px solid var(--primary-800); background-color: #f8fafc; padding: 4px; color: var(--primary-800); font-weight: bold; font-size: 11px;">نشاطات أخرى</th>
+                                    </tr>
+                                    <tr>
+                                        <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: middle; width: 65px;">
+                                            <div style="font-weight:bold; font-size:11px;">اليوم</div>
+                                        </th>
+                                        <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
+                                            <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">الماء المستهلك</div>
+                                            <div style="font-size:9px;">باللتر أو كم<br>قدح ماء</div>
+                                        </th>
+                                        <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
+                                            <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">الحركة والنشاط<br>اليوم</div>
+                                            <div style="font-size:9px;">(جيد- متوسط-<br>ضعيف)</div>
+                                        </th>
+                                        <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
+                                            <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">عدد ساعات<br>النوم</div>
+                                            <div style="font-size:9px;">(من -إلى)</div>
+                                        </th>
+                                        <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
+                                            <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">الهضم</div>
+                                            <div style="font-size:9px;">(جيد، هل تواجه<br>انتفاخات<br>ومشاكل أخرى)</div>
+                                            </th>
+                                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
+                                                    <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">اذا تم استهلاك أي<br>شيء غير صحي</div>
+                                                    <div style="font-size:9px;">(التدخين أو<br>وجبات...)</div>
+                                                </th>
+                                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: top;">
+                                                    <div style="font-weight:bold; font-size:11px; margin-bottom:4px;">الطاقة</div>
+                                                    <div style="font-size:9px;">(جيدا - متوسط<br>-ضعيف)</div>
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${(() => {
                 const days = ['يوم الاحد', 'يوم الاثنين', 'يوم الثلاثاء', 'يوم الأربعاء', 'يوم الخميس', 'يوم الجمعة', 'يوم السبت'];
                 // Find matching log by date
                 let matchedLog = null;
@@ -773,27 +981,27 @@ const Views = {
                                     `;
                 }).join('');
             })()}
-                        </tbody>
-                    </table>
-                </div>
+                                        </tbody>
+                                    </table>
+                                </div>
 
-                <!-- Progress History Table (Weight and Measurements) -->
-                <div style="overflow-x: auto; margin-bottom: 15px;">
-                    <table style="width: 100%; border-collapse: collapse; border: 1px solid var(--primary-800); text-align: center;">
-                        <thead>
-                            <tr>
-                                <th colspan="5" style="border: 1px solid var(--primary-800); background-color: #f8fafc; padding: 4px; color: var(--primary-800); font-weight: bold; font-size: 11px;">سجل الوزن والقياسات</th>
-                            </tr>
-                            <tr style="font-size: 10px; font-weight: bold;">
-                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800);">التاريخ</th>
-                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800);">الوزن</th>
-                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800);">صدر</th>
-                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800);">خصر</th>
-                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800);">أرداف</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${(() => {
+                                <!-- Progress History Table (Weight and Measurements) -->
+                                <div style="overflow-x: auto; margin-bottom: 15px;">
+                                    <table style="width: 100%; border-collapse: collapse; border: 1px solid var(--primary-800); text-align: center;">
+                                        <thead>
+                                            <tr>
+                                                <th colspan="5" style="border: 1px solid var(--primary-800); background-color: #f8fafc; padding: 4px; color: var(--primary-800); font-weight: bold; font-size: 11px;">سجل الوزن والقياسات</th>
+                                            </tr>
+                                            <tr style="font-size: 10px; font-weight: bold;">
+                                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800);">التاريخ</th>
+                                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800);">الوزن</th>
+                                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800);">صدر</th>
+                                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800);">خصر</th>
+                                                <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800);">أرداف</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${(() => {
                 let matchedLog = null;
                 if (pageData && pageData.logDate) {
                     matchedLog = client.progressLogs?.find(l => l.date === pageData.logDate);
@@ -815,12 +1023,12 @@ const Views = {
                     return '<tr><td colspan="5" style="border: 1px solid var(--primary-800); padding:4px; font-size:10px;">لا توجد سجلات مطابقة</td></tr>';
                 }
             })()}
-                        </tbody>
-                    </table>
-                </div>
+                                        </tbody>
+                                    </table>
+                                </div>
 
-                <!-- Notes Section -->
-                ${(() => {
+                                <!-- Notes Section -->
+                                ${(() => {
                 let matchedLog = null;
                 if (pageData && pageData.logDate) {
                     matchedLog = client.progressLogs?.find(l => l.date === pageData.logDate);
@@ -837,45 +1045,45 @@ const Views = {
                     </div>
                     `;
             })()}
-
-            </div>
-        </div>
-    `;
+                        </div>
+                    </div>
+                </div>
+                `;
     },
 
     clientsPage: (clients) => `
-        <header class="top-bar">
-            <h2 id="page-title">المشتركين</h2>
-            <div class="user-profile" onclick="app.showUserProfile()">
-                <div class="user-info-text">
-                    <span class="admin-name">${localStorage.getItem('rawan_admin_name') || 'المشرف'}</span>
-                    <span class="admin-role">Admin</span>
-                </div>
-                <div class="avatar"><i class="ph ph-user"></i></div>
-            </div>
-        </header>
+                <header class="top-bar">
+                    <h2 id="page-title">المشتركين</h2>
+                    <div class="user-profile" onclick="app.showUserProfile()">
+                        <div class="user-info-text">
+                            <span class="admin-name">${localStorage.getItem('rawan_admin_name') || 'المشرف'}</span>
+                            <span class="admin-role">Admin</span>
+                        </div>
+                        <div class="avatar"><i class="ph ph-user"></i></div>
+                    </div>
+                </header>
 
-        <div class="recent-clients-section">
-            <div class="section-header">
-                <h3>إدارة المشتركين</h3>
-                <button class="btn-primary" onclick="app.navigate('add-client')">
-                    <i class="ph ph-plus-circle"></i> إضافة مشترك
-                </button>
-            </div>
-            
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>الاسم</th>
-                            <th>تاريخ الانضمام</th>
-                            <th>الوزن</th>
-                            <th>الحالة</th>
-                            <th>إجراء</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${clients.map(client => `
+                <div class="recent-clients-section">
+                    <div class="section-header">
+                        <h3>إدارة المشتركين</h3>
+                        <button class="btn-primary" onclick="app.navigate('add-client')">
+                            <i class="ph ph-plus-circle"></i> إضافة مشترك
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>الاسم</th>
+                                    <th>تاريخ الانضمام</th>
+                                    <th>الوزن</th>
+                                    <th>الحالة</th>
+                                    <th>إجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${clients.map(client => `
                             <tr>
                                 <td>${client.name}</td>
                                 <td>${client.joinDate}</td>
@@ -889,120 +1097,162 @@ const Views = {
                                 </td>
                             </tr>
                         `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `,
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                `,
 
     settings: () => `
-        <header class="top-bar">
-            <h2 id="page-title">الإعدادات</h2>
-            <div class="user-profile" onclick="app.showUserProfile()">
-                <div class="user-info-text">
-                    <span class="admin-name">${localStorage.getItem('rawan_admin_name') || 'المشرف'}</span>
-                    <span class="admin-role">Admin</span>
+                <header class="top-bar">
+                    <h2 id="page-title">الإعدادات</h2>
+                    <div class="user-profile" onclick="app.showUserProfile()">
+                        <div class="user-info-text">
+                            <span class="admin-name">${localStorage.getItem('rawan_admin_name') || 'المشرف'}</span>
+                            <span class="admin-role">Admin</span>
+                        </div>
+                        <div class="avatar"><i class="ph ph-user"></i></div>
+                    </div>
+                </header>
+
+                <div class="form-card">
+                    <h3>النسخ الاحتياطي والاستعادة</h3>
+                    <p>يمكنك تحميل نسخة من جميع بيانات المشتركين كملف JSON واستعادتها لاحقاً.</p>
+                    <div style="display:flex; gap:16px; margin-top:20px;">
+                        <button class="btn-primary" onclick="dataManager.downloadBackup()">
+                            <i class="ph ph-download-simple"></i> تحميل نسخة احتياطية
+                        </button>
+
+                        <input type="file" id="backup-file" style="display:none;" onchange="dataManager.restoreBackup(this)">
+                            <button class="btn-secondary" onclick="document.getElementById('backup-file').click()">
+                                <i class="ph ph-upload-simple"></i> استعادة نسخة (Restore)
+                            </button>
+                    </div>
                 </div>
-                <div class="avatar"><i class="ph ph-user"></i></div>
-            </div>
-        </header>
-        
-        <div class="form-card">
-            <h3>النسخ الاحتياطي والاستعادة</h3>
-            <p>يمكنك تحميل نسخة من جميع بيانات المشتركين كملف JSON واستعادتها لاحقاً.</p>
-            <div style="display:flex; gap:16px; margin-top:20px;">
-                <button class="btn-primary" onclick="dataManager.downloadBackup()">
-                    <i class="ph ph-download-simple"></i> تحميل نسخة احتياطية
-                </button>
-                
-                <input type="file" id="backup-file" style="display:none;" onchange="dataManager.restoreBackup(this)">
-                <button class="btn-secondary" onclick="document.getElementById('backup-file').click()">
-                    <i class="ph ph-upload-simple"></i> استعادة نسخة (Restore)
-                </button>
-            </div>
-        </div>
-        
-        <div class="form-card" style="margin-top:20px;">
-            <h3>تسجيل الخروج</h3>
-            <button class="btn-sm" style="background:#fee2e2; color:#dc2626; margin-top:10px;" onclick="app.handleLogout()">
-                <i class="ph ph-sign-out"></i> تسجيل الخروج
-            </button>
-        </div>
-        
-        <!-- Hidden Image Viewer -->
-        <div id="image-viewer-modal" class="image-viewer" onclick="this.style.display='none'">
-            <span class="close-viewer">&times;</span>
-            <img class="viewer-content" id="full-image">
-        </div>
-    `,
+
+                <div class="form-card" style="margin-top:20px;">
+                    <h3>تسجيل الخروج</h3>
+                    <button class="btn-sm" style="background:#fee2e2; color:#dc2626; margin-top:10px;" onclick="app.handleLogout()">
+                        <i class="ph ph-sign-out"></i> تسجيل الخروج
+                    </button>
+                </div>
+
+                <!-- Hidden Image Viewer -->
+                <div id="image-viewer-modal" class="image-viewer" onclick="this.style.display='none'">
+                    <span class="close-viewer">&times;</span>
+                    <img class="viewer-content" id="full-image"></img>
+                </div>
+                `,
 
     modal: (msg, type = 1) => `
-        <div class="modal-overlay" id="custom-modal" style="display:flex;">
-            <div class="modal-card">
-                <h3 style="margin-bottom:16px;">تأكيد</h3>
-                <p>${msg}</p>
-                <div class="modal-actions">
-                    <button class="btn-secondary" onclick="app.closeModal()">إلغاء</button>
-                    <button class="btn-primary" onclick="app.executeConfirm(0)" style="background:#ef4444; border-color:#ef4444;">تأكيد</button>
+                <div class="modal-overlay" id="custom-modal" style="display:flex;">
+                    <div class="modal-card">
+                        <h3 style="margin-bottom:16px;">${type === 0 ? 'تنبيه' : 'تأكيد'}</h3>
+                        <p>${msg}</p>
+                        <div class="modal-actions">
+                            ${type === 1 ? `
+                            <button class="btn-secondary" onclick="app.closeModal()">إلغاء</button>
+                            <button class="btn-primary" onclick="app.executeConfirm(0)" style="background:#ef4444; border-color:#ef4444;">تأكيد</button>
+                            ` : `
+                            <button class="btn-primary" onclick="app.closeModal()" style="width:100%;">حسناً</button>
+                            `}
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    `,
+                `,
 
-    userProfileModal: () => `
-        <div class="modal-overlay" id="user-profile-modal" style="display:flex;" onclick="if(event.target === this) this.remove()">
-            <div class="profile-card-modal">
-                <div class="profile-header">
-                    <div class="profile-avatar"><i class="ph ph-user"></i></div>
-                    <h3>${localStorage.getItem('rawan_admin_name') || 'المشرف'}</h3>
-                    <p>مدير النظام</p>
+    userProfileModal: (role = 'admin', name = 'المشرف') => `
+                <div class="modal-overlay" id="user-profile-modal" style="display:flex;" onclick="if(event.target === this) this.remove()">
+                    <div class="profile-card-modal">
+                        <div class="profile-header">
+                            <div class="profile-avatar"><i class="ph ph-user"></i></div>
+                            <h3>${name}</h3>
+                            <p>${role === 'admin' ? 'مدير النظام' : 'مشترك'}</p>
+                        </div>
+                        <div class="profile-body">
+                            ${role === 'admin' ? `
+                            <div class="profile-item" onclick="app.openCustomInput('تغيير الاسم', 'الاسم الجديد', '${name}', app.changeName.bind(app))">
+                                <i class="ph ph-pencil-simple"></i>
+                                <span>تغيير الاسم</span>
+                            </div>
+                            <div class="profile-item" onclick="app.openPasswordChangeModal()">
+                                <i class="ph ph-lock-key"></i>
+                                <span>تغيير كلمة المرور</span>
+                            </div>
+                            ` : `
+                            <div class="profile-item" onclick="app.openPasswordChangeModal()">
+                                <i class="ph ph-lock-key"></i>
+                                <span>تغيير كلمة المرور</span>
+                            </div>
+                            `}
+                            <div class="profile-item" onclick="setTheme('theme-orange')">
+                                <div class="theme-circle" style="background:#f97316;"></div>
+                                <span>ثيم برتقالي</span>
+                            </div>
+                            <div class="profile-item" onclick="setTheme('theme-green')">
+                                <div class="theme-circle" style="background:#10b981;"></div>
+                                <span>ثيم أخضر</span>
+                            </div>
+                            <div class="profile-item" onclick="setTheme('theme-blue')">
+                                <div class="theme-circle" style="background:#3b82f6;"></div>
+                                <span>ثيم أزرق</span>
+                            </div>
+                            <hr style="border:none; border-top:1px solid var(--color-gray-200); margin:8px 0;">
+                            <div class="profile-item" onclick="app.handleLogout()" style="color:#ef4444;">
+                                <i class="ph ph-sign-out"></i>
+                                <span>تسجيل الخروج</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="profile-body">
-                    <div class="profile-item" onclick="app.openCustomInput('تغيير الاسم', 'الاسم الجديد', '${localStorage.getItem('rawan_admin_name') || ''}', app.changeName.bind(app))">
-                        <i class="ph ph-pencil-simple"></i>
-                        <span>تغيير الاسم</span>
-                    </div>
-                    <div class="profile-item" onclick="app.openCustomInput('تغيير كلمة المرور', 'كلمة المرور الجديدة', '', app.changePassword.bind(app))">
-                        <i class="ph ph-lock-key"></i>
-                        <span>تغيير كلمة المرور</span>
-                    </div>
-                     <div class="profile-item" onclick="setTheme('theme-orange')">
-                        <div class="theme-circle" style="background:#f97316;"></div>
-                        <span>ثيم برتقالي</span>
-                    </div>
-                     <div class="profile-item" onclick="setTheme('theme-green')">
-                        <div class="theme-circle" style="background:#10b981;"></div>
-                        <span>ثيم أخضر</span>
-                    </div>
-                     <div class="profile-item" onclick="setTheme('theme-blue')">
-                        <div class="theme-circle" style="background:#3b82f6;"></div>
-                        <span>ثيم أزرق</span>
+                `,
+
+    passwordChangeModal: () => `
+                <div class="modal-overlay" id="password-change-modal" style="display:flex;">
+                    <div class="modal-card">
+                        <h3>تغيير كلمة المرور</h3>
+                        <div class="form-group" style="margin:20px 0;">
+                            <label style="display:block; margin-bottom:8px; font-weight:bold; color:var(--color-gray-600); text-align:right;">كلمة المرور الجديدة</label>
+                            <div style="position:relative;">
+                                <input type="password" id="new-password-field" class="form-control" required style="text-align:left; direction:ltr; padding-right:40px;">
+                                <i class="ph ph-eye" onclick="app.togglePasswordVisibility(this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--color-gray-500); font-size:20px;"></i>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin:20px 0;">
+                            <label style="display:block; margin-bottom:8px; font-weight:bold; color:var(--color-gray-600); text-align:right;">تأكيد كلمة المرور</label>
+                            <div style="position:relative;">
+                                <input type="password" id="confirm-password-field" class="form-control" required style="text-align:left; direction:ltr; padding-right:40px;">
+                                <i class="ph ph-eye" onclick="app.togglePasswordVisibility(this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--color-gray-500); font-size:20px;"></i>
+                            </div>
+                        </div>
+                        <div class="modal-actions">
+                            <button class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">إلغاء</button>
+                            <button class="btn-primary" onclick="app.submitPasswordChange()">حفظ التغييرات</button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    `,
+                `,
 
     inputModal: (title, label, value) => `
-        <div class="modal-overlay" id="input-modal" style="display:flex;">
-            <div class="modal-card">
-                <h3>${title}</h3>
-                <div class="form-group" style="margin:20px 0;">
-                    <label>${label}</label>
-                    <input type="text" id="modal-input-field" class="form-control" value="${value}">
+                <div class="modal-overlay" id="input-modal" style="display:flex;">
+                    <div class="modal-card">
+                        <h3>${title}</h3>
+                        <div class="form-group" style="margin:20px 0;">
+                            <label>${label}</label>
+                            <input type="text" id="modal-input-field" class="form-control" value="${value}">
+                        </div>
+                        <div class="modal-actions">
+                            <button class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">إلغاء</button>
+                            <button class="btn-primary" onclick="app.submitInputModal()">حفظ</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="modal-actions">
-                    <button class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">إلغاء</button>
-                    <button class="btn-primary" onclick="app.submitInputModal()">حفظ</button>
-                </div>
-            </div>
-        </div>
-    `,
+                `,
 
     imageModal: (src) => `
-        <div class="image-viewer" style="display:flex;" onclick="this.remove()">
-             <span class="close-viewer">&times;</span>
-            <img class="viewer-content" src="${src}" style="max-height:90vh; max-width:90vw;">
-        </div>
-    `
+                <div class="image-viewer" style="display:flex;" onclick="this.remove()">
+                    <span class="close-viewer">&times;</span>
+                    <img class="viewer-content" src="${src}" style="max-height:90vh; max-width:90vw;">
+                </div>
+                `
 };

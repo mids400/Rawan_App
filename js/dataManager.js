@@ -173,6 +173,38 @@ class DataManager {
         }
     }
 
+    // --- Authentication & OTP ---
+    async generateOTP(clientId) {
+        const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit PIN
+        const expiresAt = Date.now() + 30 * 60 * 1000; // 30 minutes in milliseconds
+
+        await this.db.collection('clients').doc(clientId).update({
+            otp: otp,
+            otpExpiresAt: expiresAt,
+            otpUsed: false
+        });
+
+        return { otp, expiresAt };
+    }
+
+    async getClientByPhone(phone) {
+        try {
+            const snapshot = await this.db.collection('clients').where('phone', '==', phone).get();
+            if (snapshot.empty) return null;
+
+            // Return first match
+            let clientData = null;
+            snapshot.forEach(doc => {
+                clientData = doc.data();
+                clientData.id = doc.id;
+            });
+            return clientData;
+        } catch (error) {
+            console.error("Error finding client by phone: ", error);
+            return null;
+        }
+    }
+
     // Theme (Local is fine for theme?)
     // User requested "Color prefs on device is fine". 
     getTheme() {
@@ -183,3 +215,4 @@ class DataManager {
         localStorage.setItem('rawan_theme', themeName);
     }
 }
+
