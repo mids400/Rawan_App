@@ -1788,4 +1788,45 @@ window.setTheme = (theme) => {
     dataManager.setTheme(theme);
 };
 
-document.addEventListener('DOMContentLoaded', () => app.init());
+// --- PWA Installation Logic ---
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent the mini-infobar from appearing on mobile
+    e.preventDefault();
+    // Stash the event so it can be triggered later.
+    deferredPrompt = e;
+    
+    // Show our custom banner
+    const installBanner = document.getElementById('pwa-install-banner');
+    if (installBanner) {
+        installBanner.style.display = 'flex';
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    app.init();
+
+    // PWA Custom Banner Logic
+    const installBtn = document.getElementById('pwa-install-btn');
+    const closeBtn = document.getElementById('pwa-close-btn');
+    const installBanner = document.getElementById('pwa-install-banner');
+
+    if (installBtn) {
+        installBtn.addEventListener('click', async () => {
+            if (installBanner) installBanner.style.display = 'none';
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response to the install prompt: ${outcome}`);
+                deferredPrompt = null;
+            }
+        });
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            if (installBanner) installBanner.style.display = 'none';
+        });
+    }
+});
