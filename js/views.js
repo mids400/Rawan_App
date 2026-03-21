@@ -514,8 +514,38 @@ const Views = {
                         </div>
 
                         <!-- Weekly Review Matrix -->
+                        <!-- Weekly Review Matrix -->
                         <div style="margin-top: 20px; border-top: 1px solid var(--color-gray-200); padding-top: 20px;">
-                            <h5 style="margin-bottom: 10px; color: var(--primary-700);">جدول النشاطات الأسبوعية</h5>
+                            <h5 style="margin-bottom: 10px; color: var(--primary-700);">جداول النشاطات الأسبوعية</h5>
+                            
+                            <!-- New Meals Table -->
+                            <h6 style="margin-bottom: 10px; color: var(--primary-600); text-align: center; font-weight: bold;">تسجيل الوجبات</h6>
+                            <div style="overflow-x: auto; margin-bottom: 20px;">
+                                <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 11px;">
+                                    <thead>
+                                        <tr style="background: var(--color-gray-100);">
+                                            <th style="padding: 6px; border: 1px solid var(--color-gray-300);">اليوم</th>
+                                            <th style="padding: 6px; border: 1px solid var(--color-gray-300);">وجبة الإفطار<br>breakfast</th>
+                                            <th style="padding: 6px; border: 1px solid var(--color-gray-300);">وجبة الغداء<br>lunch</th>
+                                            <th style="padding: 6px; border: 1px solid var(--color-gray-300);">وجبة العشاء<br>dinner</th>
+                                            <th style="padding: 6px; border: 1px solid var(--color-gray-300);">الوجبة الجانبية<br>snack</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${['يوم الاحد', 'يوم الاثنين', 'يوم الثلاثاء', 'يوم الأربعاء', 'يوم الخميس', 'يوم الجمعة', 'يوم السبت'].map((day, idx) => `
+                                            <tr>
+                                                <td style="padding: 6px; border: 1px solid var(--color-gray-300); font-weight: bold; background: #fff;">${day}</td>
+                                                <td style="padding: 2px; background: #fff; border: 1px solid var(--color-gray-300);"><input type="text" name="meal_breakfast_${idx}" style="border:none; width:100%; box-sizing:border-box; padding:6px; font-size:12px; background:transparent;"></td>
+                                                <td style="padding: 2px; background: #fff; border: 1px solid var(--color-gray-300);"><input type="text" name="meal_lunch_${idx}" style="border:none; width:100%; box-sizing:border-box; padding:6px; font-size:12px; background:transparent;"></td>
+                                                <td style="padding: 2px; background: #fff; border: 1px solid var(--color-gray-300);"><input type="text" name="meal_dinner_${idx}" style="border:none; width:100%; box-sizing:border-box; padding:6px; font-size:12px; background:transparent;"></td>
+                                                <td style="padding: 2px; background: #fff; border: 1px solid var(--color-gray-300);"><input type="text" name="meal_snack_${idx}" style="border:none; width:100%; box-sizing:border-box; padding:6px; font-size:12px; background:transparent;"></td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <h6 style="margin-bottom: 10px; color: var(--primary-600); text-align: center; font-weight: bold;">نشاطات أخرى</h6>
                             <div style="overflow-x: auto;">
                                 <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 11px;">
                                     <thead>
@@ -910,6 +940,61 @@ const Views = {
                                     <div style="font-weight:bold;">${client.targetWeight || '-'} كجم</div>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- New Meals Table Output -->
+                        <div style="overflow-x: auto; margin-bottom: 15px;">
+                            <table style="width: 100%; border-collapse: collapse; border: 1px solid var(--primary-800); text-align: center;">
+                                <thead>
+                                    <tr>
+                                        <th colspan="5" style="border: 1px solid var(--primary-800); background-color: #f8fafc; padding: 4px; color: var(--primary-800); font-weight: bold; font-size: 11px;">تسجيل الوجبات</th>
+                                    </tr>
+                                    <tr>
+                                        <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: middle; width: 65px;">
+                                            <div style="font-weight:bold; font-size:11px;">اليوم</div>
+                                        </th>
+                                        <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: middle;">
+                                            <div style="font-weight:bold; font-size:11px;">وجبة الإفطار<br>breakfast</div>
+                                        </th>
+                                        <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: middle;">
+                                            <div style="font-weight:bold; font-size:11px;">وجبة الغداء<br>lunch</div>
+                                        </th>
+                                        <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: middle;">
+                                            <div style="font-weight:bold; font-size:11px;">وجبة العشاء<br>dinner</div>
+                                        </th>
+                                        <th style="border: 1px solid var(--primary-800); padding: 4px; color: var(--primary-800); vertical-align: middle;">
+                                            <div style="font-weight:bold; font-size:11px;">الوجبة الجانبية<br>snack</div>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${(() => {
+                const days = ['يوم الاحد', 'يوم الاثنين', 'يوم الثلاثاء', 'يوم الأربعاء', 'يوم الخميس', 'يوم الجمعة', 'يوم السبت'];
+                let matchedLog = null;
+                if (pageData && pageData.logDate) {
+                    matchedLog = client.progressLogs?.find(l => l.date === pageData.logDate);
+                } else if (client.progressLogs?.length > 0) {
+                    matchedLog = client.progressLogs[client.progressLogs.length - 1];
+                }
+
+                const wr = matchedLog?.weeklyReview || {};
+                const meals = wr.meals || Array.from({ length: 7 }).map(() => ({ breakfast: '', lunch: '', dinner: '', snack: '' }));
+
+                return days.map((day, idx) => {
+                    const m = meals[idx] || {};
+                    return `
+                                    <tr>
+                                        <td style="border: 1px solid var(--primary-800); padding: 6px 2px; color: var(--primary-800); font-weight: bold; font-size: 10px; background-color: #f8fafc;">${day}</td>
+                                        <td style="border: 1px solid var(--primary-800); padding: 4px;">${m.breakfast || ''}</td>
+                                        <td style="border: 1px solid var(--primary-800); padding: 4px;">${m.lunch || ''}</td>
+                                        <td style="border: 1px solid var(--primary-800); padding: 4px;">${m.dinner || ''}</td>
+                                        <td style="border: 1px solid var(--primary-800); padding: 4px;">${m.snack || ''}</td>
+                                    </tr>
+                                    `;
+                }).join('');
+            })()}
+                                </tbody>
+                            </table>
                         </div>
 
                         <!-- Weekly Review Table (Diet/Activity Matrix) -->

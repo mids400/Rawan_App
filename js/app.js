@@ -652,6 +652,12 @@ const app = {
                         unhealthy: formData.get(`wr_unhealthy_${i}`) || '',
                         energy: formData.get(`wr_energy_${i}`) || ''
                     })),
+                    meals: Array.from({ length: 7 }).map((_, i) => ({
+                        breakfast: formData.get(`meal_breakfast_${i}`) || '',
+                        lunch: formData.get(`meal_lunch_${i}`) || '',
+                        dinner: formData.get(`meal_dinner_${i}`) || '',
+                        snack: formData.get(`meal_snack_${i}`) || ''
+                    })),
                     note_general: formData.get('wr_note_general') || '',
                     note_difficulties: formData.get('wr_note_difficulties') || '',
                     note_best_part: formData.get('wr_note_best_part') || ''
@@ -735,6 +741,14 @@ const app = {
                     if (form.elements[`wr_digestion_${idx}`]) form.elements[`wr_digestion_${idx}`].value = dayData.digestion || '';
                     if (form.elements[`wr_unhealthy_${idx}`]) form.elements[`wr_unhealthy_${idx}`].value = dayData.unhealthy || '';
                     if (form.elements[`wr_energy_${idx}`]) form.elements[`wr_energy_${idx}`].value = dayData.energy || '';
+                });
+            }
+            if (log.weeklyReview.meals) {
+                log.weeklyReview.meals.forEach((dayData, idx) => {
+                    if (form.elements[`meal_breakfast_${idx}`]) form.elements[`meal_breakfast_${idx}`].value = dayData.breakfast || '';
+                    if (form.elements[`meal_lunch_${idx}`]) form.elements[`meal_lunch_${idx}`].value = dayData.lunch || '';
+                    if (form.elements[`meal_dinner_${idx}`]) form.elements[`meal_dinner_${idx}`].value = dayData.dinner || '';
+                    if (form.elements[`meal_snack_${idx}`]) form.elements[`meal_snack_${idx}`].value = dayData.snack || '';
                 });
             }
             if (form.elements['wr_note_general']) form.elements['wr_note_general'].value = log.weeklyReview.note_general || '';
@@ -913,7 +927,7 @@ const app = {
         tinymce.init({
             selector: '#tinymce-editor',
             height: '1125px', // Exact A4 Height
-            language: 'ar',
+            directionality: 'rtl',
             menubar: true,
             statusbar: false, /* Hide status bar/resize handle */
             resize: false,    /* Disable resizing */

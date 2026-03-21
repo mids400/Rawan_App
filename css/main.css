@@ -1784,6 +1784,10 @@ body {
     flex-grow: 1;
 }
 
+.tox-promotion {
+    display: none !important;
+}
+
 /* Page Break styling for TinyMCE content */
 .mce-pagebreak {
     border-top: 2px dashed #9ca3af;

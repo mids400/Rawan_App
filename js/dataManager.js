@@ -28,8 +28,11 @@ class DataManager {
             if (this.onChangeCallback) this.onChangeCallback();
         }, (error) => {
             console.error("Error syncing data: ", error);
-            // Fail silently or show toast?
-            // alert("خطأ في الاتصال بقاعدة البيانات");
+            alert("خطأ في الاتصال بقاعدة البيانات: " + error.message + "\n\n(قد تكون صلاحيات Firebase المؤقتة انتهت)");
+            // Still call the callback so the UI can at least render the login screen
+            if (this.onChangeCallback) {
+                this.onChangeCallback();
+            }
         });
     }
 
