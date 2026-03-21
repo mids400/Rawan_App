@@ -1792,34 +1792,50 @@ window.setTheme = (theme) => {
 let deferredPrompt;
 
 window.addEventListener('beforeinstallprompt', (e) => {
-    // Prevent the mini-infobar from appearing on mobile
     e.preventDefault();
-    // Stash the event so it can be triggered later.
     deferredPrompt = e;
-    
-    // Show our custom banner
-    const installBanner = document.getElementById('pwa-install-banner');
-    if (installBanner) {
-        installBanner.style.display = 'flex';
-    }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
     app.init();
 
-    // PWA Custom Banner Logic
     const installBtn = document.getElementById('pwa-install-btn');
     const closeBtn = document.getElementById('pwa-close-btn');
     const installBanner = document.getElementById('pwa-install-banner');
+    
+    // Check if app is already running in standalone mode (installed)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone || document.referrer.includes('android-app://');
+
+    // Show banner after 2 seconds if not installed
+    if (!isStandalone && installBanner) {
+        setTimeout(() => {
+            installBanner.style.display = 'flex';
+        }, 2000);
+    }
 
     if (installBtn) {
         installBtn.addEventListener('click', async () => {
             if (installBanner) installBanner.style.display = 'none';
+            
             if (deferredPrompt) {
+                // Browser supports automatic prompt (Chrome/Edge/Samsung)
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
-                console.log(`User response to the install prompt: ${outcome}`);
                 deferredPrompt = null;
+            } else {
+                // Browser doesn't support automatic prompt (Firefox/Safari)
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                let msg = '<div style="text-align:right; font-size:16px;"><b>تثبيت التطبيق يدوياً ⚙️</b><br><br>';
+                
+                if (isIOS) {
+                    msg += "لإضافة التطبيق لجهازك الخاص:<br><br>1. اضغط على زر <b>المشاركة (Share)</b> <i class='ph ph-export'></i> الموجود أسفل أو أعلى المتصفح.<br>2. اختر <b>'إضافة إلى الشاشة الرئيسية' (Add to Home Screen)</b> <i class='ph ph-plus-square'></i>.";
+                } else {
+                    msg += "متصفحك الحالي يمنع التثبيت التلقائي. لإضافة التطبيق:<br><br>1. اضغط على خيارات المتصفح (الثلاث نقاط) <i class='ph ph-dots-three-vertical'></i>.<br>2. اختر <b>'إضافة إلى الشاشة الرئيسية'</b> أو <b>'تثبيت التطبيق' (Install App)</b> <i class='ph ph-download-simple'></i>.";
+                }
+                msg += "</div>";
+                
+                // Use existing custom alert
+                app.showCustomAlert(msg);
             }
         });
     }
